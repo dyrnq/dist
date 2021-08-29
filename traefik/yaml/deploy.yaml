@@ -1,0 +1,330 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: traefik-io
+---
+# Source: traefik/templates/rbac/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  namespace: traefik-io
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+  name: traefik-ingress-controller
+---
+# Source: traefik/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  namespace: traefik-io
+  name: traefik-ingress-controller
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+data:
+  traefik.yaml: |
+    
+    global:
+      checkNewVersion: false
+      sendAnonymousUsage: true
+    serversTransport:
+      forwardingTimeouts:
+        dialTimeout: 30s
+        idleConnTimeout: 90s
+        responseHeaderTimeout: 0s
+      insecureSkipVerify: false
+      maxIdleConnsPerHost: 2
+    providers:
+      kubernetesCRD:
+        allowCrossNamespace: true
+      providersThrottleDuration: 2s
+    log:
+      format: common
+      level: DEBUG
+    accessLog:
+      bufferingSize: 100
+      # fields:
+      #   defaultMode: drop
+      #   headers:
+      #     defaultMode: drop
+      #     names: {}
+      #   names: {}
+      format: json
+    entryPoints:
+      http:
+        address: :8080
+      https:
+        address: :8443
+      metrics:
+        address: :9042
+      ping:
+        address: :8001
+      traefik:
+        address: :8000
+    ping:
+      entryPoint: ping
+      manualRouting: false
+      terminatingStatusCode: 503
+    metrics:
+      prometheus:
+        buckets:
+        - 0.1
+        - 0.3
+        - 1.2
+        - 5
+        entryPoint: metrics
+    api:
+      dashboard: true
+      debug: false
+      insecure: true
+    hostResolver:
+      cnameFlattening: false
+      resolvConfig: /etc/resolv.conf
+      resolvDepth: 5
+---
+# Source: traefik/templates/rbac/clusterrole.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-ingress-controller
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+      - endpoints
+      - secrets
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses
+      - ingressclasses
+    verbs:
+      - get
+      - list
+      - watch
+  - apiGroups:
+      - extensions
+      - networking.k8s.io
+    resources:
+      - ingresses/status
+    verbs:
+      - update
+  - apiGroups:
+      - traefik.containo.us
+    resources:
+      - ingressroutes
+      - ingressroutetcps
+      - ingressrouteudps
+      - middlewares
+      - middlewaretcps
+      - serverstransports
+      - tlsoptions
+      - tlsstores
+      - traefikservices
+    verbs:
+      - get
+      - list
+      - watch
+---
+# Source: traefik/templates/rbac/clusterrolebinding.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: traefik-ingress-controller
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: traefik-ingress-controller
+subjects:
+  - kind: ServiceAccount
+    name: traefik-ingress-controller
+    namespace: traefik-io
+---
+# Source: traefik/templates/monitoring/service-metrics.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: traefik-io
+  name: traefik-ingress-controller-metrics
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+spec:
+  ports:
+    - name: metrics
+      protocol: TCP
+      port: 9042
+      targetPort: 9042
+  selector:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+  clusterIP: None
+  type: ClusterIP
+---
+# Source: traefik/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  namespace: traefik-io
+  name: traefik-ingress-controller
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+spec:
+  ports:
+    - name: http
+      targetPort: 8080
+      port: 80
+    - name: https
+      targetPort: 8443
+      port: 443
+    - name: traefik
+      targetPort: 8000
+      port: 8000
+  selector:
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+  type: NodePort
+---
+# Source: traefik/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  namespace: traefik-io
+  name: traefik-ingress-controller
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: traefik
+      app.kubernetes.io/instance: release
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app.kubernetes.io/name: traefik
+        app.kubernetes.io/instance: release
+    spec:
+      serviceAccountName: traefik-ingress-controller
+      terminationGracePeriodSeconds: 30
+      hostNetwork: false
+      volumes:
+        - name: config
+          configMap:
+            name: traefik-ingress-controller
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: traefik
+          image: "traefik:2.5.1"
+          imagePullPolicy: IfNotPresent
+          args:
+          - --configfile=/etc/traefik/traefik.yaml
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: https
+              containerPort: 8443
+            - name: metrics
+              containerPort: 9042
+            - name: ping
+              containerPort: 8001
+            - name: traefik
+              containerPort: 8000
+          livenessProbe:
+            tcpSocket:
+              port: ping
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+          readinessProbe:
+            failureThreshold: 1
+            httpGet:
+              path: /ping
+              port: ping
+              scheme: HTTP
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 2
+          volumeMounts:
+            - name: config
+              mountPath: /etc/traefik
+              readOnly: true
+            - name: tmp
+              mountPath: /tmp
+      terminationGracePeriodSeconds: 30
+---
+# Source: traefik/templates/ingressclass.yaml
+apiVersion: networking.k8s.io/v1
+kind: IngressClass
+metadata:
+  annotations:
+    ingressclass.kubernetes.io/is-default-class: "false"
+  labels:
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: traefik
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/version: "2.5.1"
+  name: traefik
+spec:
+  controller: traefik.io/ingress-controller
+---
+apiVersion: traefik.containo.us/v1alpha1
+kind: IngressRoute
+metadata:
+  name: release-traefik-dashboard
+  annotations:
+    helm.sh/hook: "post-install,post-upgrade"
+  labels:
+    app.kubernetes.io/name: traefik
+    helm.sh/chart: traefik-1.4.0
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/instance: release
+spec:
+  entryPoints:
+    - traefik
+  routes:
+  - match: PathPrefix(`/dashboard`) || PathPrefix(`/api`)
+    kind: Rule
+    services:
+    - name: api@internal
+      kind: TraefikService

@@ -42,6 +42,7 @@ data:
       insecureSkipVerify: false
       maxIdleConnsPerHost: 2
     providers:
+      kubernetesIngress: {}
       kubernetesCRD:
         allowCrossNamespace: true
       providersThrottleDuration: 2s

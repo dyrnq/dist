@@ -3,7 +3,6 @@
 ## install crd
 
 ```bash
-#!/usr/bin/env bash
 kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/traefik/traefik/v2.5/docs/content/reference/dynamic-configuration/traefik.containo.us_ingressroutes.yaml
 kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/traefik/traefik/v2.5/docs/content/reference/dynamic-configuration/traefik.containo.us_ingressroutetcps.yaml
 kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/traefik/traefik/v2.5/docs/content/reference/dynamic-configuration/traefik.containo.us_ingressrouteudps.yaml
@@ -15,6 +14,8 @@ kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/traefik/t
 kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/traefik/traefik/v2.5/docs/content/reference/dynamic-configuration/traefik.containo.us_traefikservices.yaml
 
 ```
+
+[ref](https://github.com/traefik/traefik/tree/master/docs/content/reference/dynamic-configuration)
 
 ## install deploy.yaml
 

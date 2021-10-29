@@ -32,7 +32,7 @@ password: 666666
 ## install
 
 ```bash
-kubectl apply -f 10-namespace.yaml
+kubectl apply -f v1.9.1/10-namespace.yaml
 
 kubectl -n apolloconfig apply -f v1.9.1/apollo-service-uat/10-deployments.yaml 
 kubectl -n apolloconfig apply -f v1.9.1/apollo-service-fat/10-deployments.yaml

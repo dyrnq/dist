@@ -1,0 +1,165 @@
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dev-apollo-adminservice
+data:
+  application-github.properties: |
+    spring.datasource.url = jdbc:mysql://192.168.122.37:3306/ApolloConfigDB_dev?characterEncoding=utf8
+    spring.datasource.username = root
+    spring.datasource.password = 666666
+---
+kind: ConfigMap
+apiVersion: v1
+metadata:
+  name: dev-apollo-configservice
+data:
+  application-github.properties: |
+    spring.datasource.url = jdbc:mysql://192.168.122.37:3306/ApolloConfigDB_dev?characterEncoding=utf8
+    spring.datasource.username = root
+    spring.datasource.password = 666666
+    apollo.config-service.url = http://dev-apollo-configservice.apolloconfig:8080
+    apollo.admin-service.url = http://dev-apollo-adminservice.apolloconfig:8090
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: dev-apollo-adminservice
+  labels:
+    app.kubernetes.io/version: "1.9.1"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8090
+      targetPort: 8090
+  selector:
+    app: dev-apollo-adminservice
+---
+kind: Service
+apiVersion: v1
+metadata:
+  name: dev-apollo-configservice
+  labels:
+    app.kubernetes.io/version: "1.9.1"
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8080
+      targetPort: 8080
+  selector:
+    app: dev-apollo-configservice
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dev-apollo-adminservice
+  labels:
+    app.kubernetes.io/version: "1.9.1"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dev-apollo-adminservice
+  template:
+    metadata:
+      labels:
+        app: dev-apollo-adminservice
+    spec:
+      volumes:
+        - name: volume-configmap-dev-apollo-adminservice
+          configMap:
+            name: dev-apollo-adminservice
+            items:
+              - key: application-github.properties
+                path: application-github.properties
+            defaultMode: 420
+      containers:
+        - name: apollo-adminservice
+          image: "apolloconfig/apollo-adminservice:1.9.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8090
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "github,kubernetes"
+          volumeMounts:
+            - name: volume-configmap-dev-apollo-adminservice
+              mountPath: /apollo-adminservice/config/application-github.properties
+              subPath: application-github.properties
+          livenessProbe:
+            tcpSocket:
+              port: 8090
+            initialDelaySeconds: 100
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8090
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          resources:
+            {}
+---
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: dev-apollo-configservice
+  labels:
+    app.kubernetes.io/version: "1.9.1"
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: dev-apollo-configservice
+  template:
+    metadata:
+      labels:
+        app: dev-apollo-configservice
+    spec:
+      volumes:
+        - name: volume-configmap-dev-apollo-configservice
+          configMap:
+            name: dev-apollo-configservice
+            items:
+              - key: application-github.properties
+                path: application-github.properties
+            defaultMode: 420
+      containers:
+        - name: apollo-configservice
+          image: "apolloconfig/apollo-configservice:1.9.1"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "github,kubernetes"
+          volumeMounts:
+            - name: volume-configmap-dev-apollo-configservice
+              mountPath: /apollo-configservice/config/application-github.properties
+              subPath: application-github.properties
+          livenessProbe:
+            tcpSocket:
+              port: 8080
+            initialDelaySeconds: 100
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8080
+            initialDelaySeconds: 30
+            periodSeconds: 5
+          resources:
+            {}
+---
+---
+---
+---
+---

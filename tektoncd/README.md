@@ -20,7 +20,7 @@ kubectl apply --filename https://storage.googleapis.com/tekton-releases/triggers
 ## Installing Tekton Dashboard on Kubernetes
 
 ```bash
-kubectl apply --filename https://storage.googleapis.com/tekton-releases/pipeline/latest/release.yaml
+kubectl apply --filename https://storage.googleapis.com/tekton-releases/dashboard/latest/tekton-dashboard-release.yaml
 ```
 
 - <https://github.com/tektoncd/dashboard/blob/main/docs/install.md#installing-tekton-dashboard-on-kubernetes>

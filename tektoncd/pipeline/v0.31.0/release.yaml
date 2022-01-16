@@ -2041,7 +2041,7 @@ spec:
         - name: webhook
           # This is the Go import path for the binary that is containerized
           # and substituted here.
-          image: docker.io/dyrnq/tektoncd-pipeline-cmd-webhook:v0.31.0@sha256:93a93d845204485b576d985f59f1f6cc3085a35faff76ec70ead6e5963220333
+          image: docker.io/dyrnq/tektoncd-pipeline-cmd-webhook:v0.31.0
           # Resource request required for autoscaler to take any action for a metric
           resources:
             requests:

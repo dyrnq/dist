@@ -3,9 +3,10 @@
 ## install
 
 ```bash
-kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dist/main/ingress-nginx/3.39.0/00-namespace.yaml
+ver="4.1.4"
+kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dist/main/ingress-nginx/${ver}/00-namespace.yaml
 
-kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dist/main/ingress-nginx/3.39.0/10-deployments.yaml
+kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dist/main/ingress-nginx/${ver}/10-deployments.yaml
 ```
 
 ```bash

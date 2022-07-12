@@ -24,6 +24,26 @@ kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dis
 kubectl -n ingress-nginx get all -o wide
 ```
 
+## options deployment or daemonset
+
+### deployments-->daemonset
+```bash
+ver="4.1.4"
+kubectl -n ingress-nginx delete job ingress-nginx-admission-create ingress-nginx-admission-patch
+kubectl -n ingress-nginx delete deployments ingress-nginx-controller
+kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dist/main/ingress-nginx/${ver}/10-daemonset.yaml
+```
+
+### daemonset-->deployments
+```bash
+ver="4.1.4"
+kubectl -n ingress-nginx delete job ingress-nginx-admission-create ingress-nginx-admission-patch
+kubectl -n ingress-nginx delete daemonset ingress-nginx-controller
+kubectl apply -f https://ghproxy.com/https://raw.githubusercontent.com/dyrnq/dist/main/ingress-nginx/${ver}/10-deployments.yaml
+```
+
+
+
 ## test
 
 ```bash

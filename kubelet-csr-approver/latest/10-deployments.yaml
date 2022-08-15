@@ -1,0 +1,157 @@
+---
+# Source: kubelet-csr-approver/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: kubelet-csr-approver
+  namespace: kube-system
+  labels:
+    helm.sh/chart: kubelet-csr-approver-0.2.3
+    app.kubernetes.io/name: kubelet-csr-approver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.2.3"
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: kubelet-csr-approver/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: kubelet-csr-approver
+rules:
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests
+  verbs:
+  - get
+  - list
+  - watch
+- apiGroups:
+  - certificates.k8s.io
+  resources:
+  - certificatesigningrequests/approval
+  verbs:
+  - update
+- apiGroups:
+  - certificates.k8s.io
+  resourceNames:
+  - kubernetes.io/kubelet-serving
+  resources:
+  - signers
+  verbs:
+  - approve
+---
+# Source: kubelet-csr-approver/templates/rolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: kubelet-csr-approver
+  namespace: kube-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: kubelet-csr-approver
+subjects:
+- kind: ServiceAccount
+  name: kubelet-csr-approver
+  namespace: kube-system
+---
+# Source: kubelet-csr-approver/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: kubelet-csr-approver
+  namespace: kube-system
+  labels:
+    helm.sh/chart: kubelet-csr-approver-0.2.3
+    app.kubernetes.io/name: kubelet-csr-approver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.2.3"
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    prometheus.io/port: '8080'
+    prometheus.io/scrape: 'true'
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: metrics
+      protocol: TCP
+      name: metrics
+  selector:
+    app.kubernetes.io/name: kubelet-csr-approver
+    app.kubernetes.io/instance: my-release
+---
+# Source: kubelet-csr-approver/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: kubelet-csr-approver
+  namespace: kube-system
+  labels:
+    helm.sh/chart: kubelet-csr-approver-0.2.3
+    app.kubernetes.io/name: kubelet-csr-approver
+    app.kubernetes.io/instance: my-release
+    app.kubernetes.io/version: "v0.2.3"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kubelet-csr-approver
+      app.kubernetes.io/instance: my-release
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: kubelet-csr-approver
+        app.kubernetes.io/instance: my-release
+    spec:
+      serviceAccountName: kubelet-csr-approver
+      securityContext:
+        {}
+      containers:
+        - name: kubelet-csr-approver
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - all
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsNonRoot: true
+            runAsUser: 65532
+          image: "postfinance/kubelet-csr-approver:v0.2.3"
+          imagePullPolicy: IfNotPresent
+          args:
+            - -metrics-bind-address
+            - ":8080"
+            - -health-probe-bind-address
+            - ":8081"
+          env:
+            - name: PROVIDER_REGEX
+              value: ^.*$
+            - name: MAX_EXPIRATION_SECONDS
+              value: "31622400"
+            - name: BYPASS_DNS_RESOLUTION
+              value: "true"
+          ports:
+            - name: metrics
+              containerPort: 8080
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: 8081
+          resources:
+            limits:
+              cpu: 500m
+              memory: 128Mi
+            requests:
+              cpu: 100m
+              memory: 64Mi
+      tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/control-plane
+          operator: Equal

@@ -1880,7 +1880,7 @@ spec:
             # by image references by digest.
             "-kubeconfig-writer-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-kubeconfigwriter:v0.37.3", "-git-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-git-init:v0.37.3", "-entrypoint-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-entrypoint:v0.37.3", "-nop-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-nop:v0.37.3", "-imagedigest-exporter-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-imagedigestexporter:v0.37.3", "-pr-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-pullrequest-init:v0.37.3", "-workingdirinit-image", "docker.io/dyrnq/tektoncd-pipeline-cmd-workingdirinit:v0.37.3",
             # This is gcr.io/google.com/cloudsdktool/cloud-sdk:302.0.0-slim
-            "-gsutil-image", "gcr.io/google.com/cloudsdktool/cloud-sdk@sha256:27b2c22bf259d9bc1a291e99c63791ba0c27a04d2db0a43241ba0f1f20f4067f",
+            "-gsutil-image", "docker.io/dyrnq/cloud-sdk:302.0.0-slim",
             # The shell image must allow root in order to create directories and copy files to PVCs.
             # ghcr.io/distroless/busybox as of April 14 2022
             # image shall not contains tag, so it will be supported on a runtime like cri-o

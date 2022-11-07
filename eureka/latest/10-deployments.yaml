@@ -1,0 +1,112 @@
+---
+# Source: eureka/templates/service-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-eureka-headless
+  labels:
+    app: eureka
+    chart: eureka-2.0.0
+    release: my
+    heritage: Helm
+spec:
+  clusterIP: None
+  ports:
+    - name: http
+      targetPort: http
+      port: 8761
+      protocol: TCP
+  selector:
+    app: eureka
+    release: my
+---
+# Source: eureka/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: my-eureka
+  labels:
+    app: eureka
+    chart: eureka-2.0.0
+    release: my
+    heritage: Helm
+spec:
+  type: ClusterIP
+  ports:
+    - name: http
+      targetPort: http
+      port: 8761
+      protocol: TCP
+  selector:
+    app: eureka
+    release: my
+---
+# Source: eureka/templates/deployment-statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-eureka
+  labels:
+    app: eureka
+    chart: eureka-2.0.0
+    release: my
+    heritage: Helm
+spec:
+  replicas: 3
+  serviceName: my-eureka-headless
+  selector:
+    matchLabels:
+      app: eureka
+      release: my
+  template:
+    metadata:
+      annotations:
+      labels:
+        app: eureka
+        release: my
+    spec:      
+      nodeSelector:
+        {}
+      affinity:
+        {}
+      tolerations:
+        []
+      containers:
+        - name: eureka
+          image: docker.io/ygqygq2/eureka-server:1.0.0
+          imagePullPolicy: "IfNotPresent"
+          env:
+            - name: SUBDOMAIN
+              value: my-eureka-headless
+            - name: EUREKA_ADDRESS_LIST
+              value: http://my-eureka-0.my-eureka-headless:8761/eureka/,http://my-eureka-1.my-eureka-headless:8761/eureka/,http://my-eureka-2.my-eureka-headless:8761/eureka/
+            - name: SPRING_PROFILES_ACTIVE
+              value: k8s
+            - name: REGISTER_WITH_EUREKA
+              value: "true"
+            - name: FETCH_REGISTRY
+              value: "true"
+            - name: ENABLE_SELF_PRESERVATION
+              value: "true"
+            - name: LOG_LEVEL
+              value: WARN
+          resources:
+            {}
+          ports:
+            - name: http
+              containerPort: 8761
+              protocol: TCP
+          livenessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          readinessProbe:
+            tcpSocket:
+              port: http
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          volumeMounts:
+      volumes:
+        - name: data-storage
+          emptyDir: {}

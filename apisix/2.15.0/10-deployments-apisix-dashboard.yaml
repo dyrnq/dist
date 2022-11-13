@@ -162,6 +162,10 @@ spec:
         app.kubernetes.io/name: apisix-dashboard
         app.kubernetes.io/instance: my
     spec:
+      initContainers:
+      - name: wait-etcd
+        image: busybox:1.28
+        command: ['sh', '-c', "until nc -z my-etcd.ingress-apisix.svc.cluster.local 2379; do echo waiting for etcd `date`; sleep 2; done;"]
       serviceAccountName: my-apisix-dashboard
       securityContext:
         {}

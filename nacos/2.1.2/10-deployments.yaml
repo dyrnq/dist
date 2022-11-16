@@ -615,6 +615,7 @@ spec:
             initialDelaySeconds: 20
             periodSeconds: 2
             timeoutSeconds: 2
+            failureThreshold: 50
             httpGet:
               scheme: HTTP
               port: 8848

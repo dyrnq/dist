@@ -590,6 +590,7 @@ metadata:
 spec:
   serviceName: nacos-hs
   replicas: 3
+  podManagementPolicy: Parallel
   selector:
     matchLabels:
       app.kubernetes.io/name: nacos

@@ -563,6 +563,7 @@ spec:
       targetPort: 8848
       protocol: TCP
       name: http
+      nodePort: 30888
     - port: 9848
       name: client-rpc
       targetPort: 9848

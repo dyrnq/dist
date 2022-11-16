@@ -599,22 +599,30 @@ spec:
         app.kubernetes.io/name: nacos
         app.kubernetes.io/instance: my
     spec:
+      initContainers:
+      - name: wait4x
+        image: atkrad/wait4x:2.9.1
+        args:
+          - mysql
+          - root:123456abc@tcp(nacos-mysql.default.svc.cluster.local:3306)/nacos_config
+          - --timeout
+          - 2s
       containers:
         - name: nacos
           image: "nacos/nacos-server:v2.1.2"
           imagePullPolicy: IfNotPresent
           startupProbe:
-            initialDelaySeconds: 180
-            periodSeconds: 5
-            timeoutSeconds: 10
+            initialDelaySeconds: 20
+            periodSeconds: 2
+            timeoutSeconds: 2
             httpGet:
               scheme: HTTP
               port: 8848
               path: /nacos/v1/console/health/readiness
           livenessProbe:
             initialDelaySeconds: 10
-            periodSeconds: 5
-            timeoutSeconds: 10
+            periodSeconds: 2
+            timeoutSeconds: 2
             httpGet:
               scheme: HTTP
               port: 8848

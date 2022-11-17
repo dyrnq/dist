@@ -651,9 +651,9 @@ spec:
               memory: 500M
           env:
             - name: NACOS_SERVER_PORT
+              value: "8848"
             - name: NACOS_SERVERS
               value: "my-nacos-0.nacos-hs.nacos-system.svc.cluster.local:8848 my-nacos-1.nacos-hs.nacos-system.svc.cluster.local:8848 my-nacos-2.nacos-hs.nacos-system.svc.cluster.local:8848"
-              value: "8848"
             - name: NACOS_APPLICATION_PORT
               value: "8848"
             - name: PREFER_HOST_MODE

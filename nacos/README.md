@@ -7,10 +7,10 @@ kubectl apply -f ./2.1.2/10-deployments.yaml
 ```
 
 ```bash
-kubectl get sts,svc,pod,ep -A -o wide | grep nacos
+kubectl get sts,svc,pod,ep,cm -n nacos-system -o wide
 ```
 
-## nacos login
+## login nacos
 
 > nodeport url
 

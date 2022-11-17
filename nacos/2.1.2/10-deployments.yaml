@@ -1,9 +1,14 @@
 ---
 apiVersion: v1
+kind: Namespace
+metadata:
+  name: nacos-system
+---
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nacos-mysql-initdb-cm
-  namespace: default
+  namespace: nacos-system
 data:
   initdb.sql: |
     create database if not exists nacos_config default character set utf8mb4 collate utf8mb4_unicode_ci;
@@ -236,7 +241,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: nacos-mysql
-  namespace: "default"
+  namespace: "nacos-system"
   labels:
     app.kubernetes.io/name: mysql
     helm.sh/chart: mysql-9.4.1
@@ -252,7 +257,7 @@ apiVersion: v1
 kind: Secret
 metadata:
   name: nacos-mysql
-  namespace: "default"
+  namespace: "nacos-system"
   labels:
     app.kubernetes.io/name: mysql
     helm.sh/chart: mysql-9.4.1
@@ -261,14 +266,14 @@ metadata:
 type: Opaque
 data:
   mysql-root-password: "MTIzNDU2YWJj"
-  mysql-password: "MEVCeWFmUklKYg=="
+  mysql-password: "ODdBb1hPQjJtTw=="
 ---
 # Source: mysql/templates/primary/configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nacos-mysql
-  namespace: "default"
+  namespace: "nacos-system"
   labels:
     app.kubernetes.io/name: mysql
     helm.sh/chart: mysql-9.4.1
@@ -313,7 +318,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nacos-mysql-headless
-  namespace: "default"
+  namespace: "nacos-system"
   labels:
     app.kubernetes.io/name: mysql
     helm.sh/chart: mysql-9.4.1
@@ -338,7 +343,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nacos-mysql
-  namespace: "default"
+  namespace: "nacos-system"
   labels:
     app.kubernetes.io/name: mysql
     helm.sh/chart: mysql-9.4.1
@@ -365,7 +370,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: nacos-mysql
-  namespace: "default"
+  namespace: "nacos-system"
   labels:
     app.kubernetes.io/name: mysql
     helm.sh/chart: mysql-9.4.1
@@ -386,7 +391,7 @@ spec:
   template:
     metadata:
       annotations:
-        checksum/configuration: 64d557a2e2ccc2cc119156f368c58c44921de18f5df704b0c7ca5d794b6a4d92
+        checksum/configuration: 149064875d97ff77659472fa2d94ee971fcf6d8462895b15b2af194629666d0a
       labels:
         app.kubernetes.io/name: mysql
         helm.sh/chart: mysql-9.4.1
@@ -407,7 +412,7 @@ spec:
                     app.kubernetes.io/name: mysql
                     app.kubernetes.io/instance: nacos
                 namespaces:
-                  - "default"
+                  - "nacos-system"
                 topologyKey: kubernetes.io/hostname
               weight: 1
         nodeAffinity:
@@ -508,9 +513,9 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: nacos-cm
-  namespace: default
+  namespace: nacos-system
 data:
-  mysql.db.host: nacos-mysql.default.svc.cluster.local
+  mysql.db.host: nacos-mysql.nacos-system.svc.cluster.local
   mysql.db.name: nacos_config
   mysql.port: "3306"
   mysql.user: root
@@ -522,7 +527,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nacos-hs
-  namespace: default
+  namespace: nacos-system
 spec:
   clusterIP: None
   publishNotReadyAddresses: true
@@ -551,7 +556,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: nacos-cs
-  namespace: default
+  namespace: nacos-system
   labels:
     null
   annotations:
@@ -575,7 +580,7 @@ spec:
       name: old-raft-rpc
       targetPort: 7848
       protocol: TCP
-      nodePort: 30000
+      #nodePort: 30000
   selector:
     app.kubernetes.io/name: nacos
     app.kubernetes.io/instance: my
@@ -585,7 +590,7 @@ apiVersion: apps/v1
 kind: StatefulSet
 metadata:
   name: my-nacos
-  namespace: default
+  namespace: nacos-system
   annotations:    {}
 spec:
   serviceName: nacos-hs
@@ -606,7 +611,7 @@ spec:
         image: atkrad/wait4x:2.9.1
         args:
           - mysql
-          - root:123456abc@tcp(nacos-mysql.default.svc.cluster.local:3306)/nacos_config
+          - root:123456abc@tcp(nacos-mysql.nacos-system.svc.cluster.local:3306)/nacos_config
           - --timeout
           - 2s
       containers:
@@ -646,9 +651,9 @@ spec:
               memory: 500M
           env:
             - name: NACOS_SERVER_PORT
-              value: "8848"
             - name: NACOS_SERVERS
-              value: "my-nacos-0.nacos-hs.default.svc.cluster.local:8848 my-nacos-1.nacos-hs.default.svc.cluster.local:8848 my-nacos-2.nacos-hs.default.svc.cluster.local:8848"
+              value: "my-nacos-0.nacos-hs.nacos-system.svc.cluster.local:8848 my-nacos-1.nacos-hs.nacos-system.svc.cluster.local:8848 my-nacos-2.nacos-hs.nacos-system.svc.cluster.local:8848"
+              value: "8848"
             - name: NACOS_APPLICATION_PORT
               value: "8848"
             - name: PREFER_HOST_MODE

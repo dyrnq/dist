@@ -1,0 +1,2269 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: polaris-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-mysql-initdb-cm
+  namespace: polaris-system
+data:
+  initdb.sql: |
+    SET
+        SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
+
+    SET
+        time_zone = "+00:00";
+
+    /*!40101 SET @OLD_CHARACTER_SET_CLIENT = @@CHARACTER_SET_CLIENT */
+    ;
+
+    /*!40101 SET @OLD_CHARACTER_SET_RESULTS = @@CHARACTER_SET_RESULTS */
+    ;
+
+    /*!40101 SET @OLD_COLLATION_CONNECTION = @@COLLATION_CONNECTION */
+    ;
+
+    /*!40101 SET NAMES utf8mb4 */
+    ;
+
+    --
+    -- Database: `polaris_server`
+    --
+    CREATE DATABASE IF NOT EXISTS polaris_server DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin;
+
+    USE polaris_server;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `business`
+    --
+    CREATE TABLE `business`
+    (
+        `id`    varchar(32)   NOT NULL comment 'Unique ID',
+        `name`  varchar(64)   NOT NULL comment 'business name',
+        `token` varchar(64)   NOT NULL comment 'Token ID of the business',
+        `owner` varchar(1024) NOT NULL comment 'The business is responsible for Owner',
+        `flag`  tinyint(4)    NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime` timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime` timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `instance`
+    --
+    CREATE TABLE `instance`
+    (
+        `id`                  varchar(128) NOT NULL comment 'Unique ID',
+        `service_id`          varchar(32)  NOT NULL comment 'Service ID',
+        `vpc_id`              varchar(64)           DEFAULT NULL comment 'VPC ID',
+        `host`                varchar(128) NOT NULL comment 'instance Host Information',
+        `port`                int(11)      NOT NULL comment 'instance port information',
+        `protocol`            varchar(32)           DEFAULT NULL comment 'Listening protocols for corresponding ports, such as TPC, UDP, GRPC, DUBBO, etc.',
+        `version`             varchar(32)           DEFAULT NULL comment 'The version of the instance can be used for version routing',
+        `health_status`       tinyint(4)   NOT NULL DEFAULT '1' comment 'The health status of the instance, 1 is health, 0 is unhealthy',
+        `isolate`             tinyint(4)   NOT NULL DEFAULT '0' comment 'Example isolation status flag, 0 is not isolated, 1 is isolated',
+        `weight`              smallint(6)  NOT NULL DEFAULT '100' comment 'The weight of the instance is mainly used for LoadBalance, default is 100',
+        `enable_health_check` tinyint(4)   NOT NULL DEFAULT '0' comment 'Whether to open a heartbeat on an instance, check the logic, 0 is not open, 1 is open',
+        `logic_set`           varchar(128)          DEFAULT NULL comment 'Example logic packet information',
+        `cmdb_region`         varchar(128)          DEFAULT NULL comment 'The region information of the instance is mainly used to close the route',
+        `cmdb_zone`           varchar(128)          DEFAULT NULL comment 'The ZONE information of the instance is mainly used to close the route.',
+        `cmdb_idc`            varchar(128)          DEFAULT NULL comment 'The IDC information of the instance is mainly used to close the route',
+        `priority`            tinyint(4)   NOT NULL DEFAULT '0' comment 'Example priority, currently useless',
+        `revision`            varchar(32)  NOT NULL comment 'Instance version information',
+        `flag`                tinyint(4)   NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`               timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`               timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        KEY `service_id` (`service_id`),
+        KEY `mtime` (`mtime`),
+        KEY `host` (`host`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `health_check`
+    --
+    CREATE TABLE `health_check`
+    (
+        `id`   varchar(128) NOT NULL comment 'Instance ID',
+        `type` tinyint(4)   NOT NULL DEFAULT '0' comment 'Instance health check type',
+        `ttl`  int(11)      NOT NULL comment 'TTL time jumping',
+        PRIMARY KEY (`id`),
+        CONSTRAINT `health_check_ibfk_1` FOREIGN KEY (`id`) REFERENCES `instance` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `instance_metadata`
+    --
+    CREATE TABLE `instance_metadata`
+    (
+        `id`     varchar(128)  NOT NULL comment 'Instance ID',
+        `mkey`   varchar(128)  NOT NULL comment 'instance label of Key',
+        `mvalue` varchar(4096) NOT NULL comment 'instance label Value',
+        `ctime`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`, `mkey`),
+        KEY `mkey` (`mkey`),
+        CONSTRAINT `instance_metadata_ibfk_1` FOREIGN KEY (`id`) REFERENCES `instance` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `namespace`
+    --
+    CREATE TABLE `namespace`
+    (
+        `name`    varchar(64)   NOT NULL comment 'Namespace name, unique',
+        `comment` varchar(1024)          DEFAULT NULL comment 'Description of namespace',
+        `token`   varchar(64)   NOT NULL comment 'TOKEN named space for write operation check',
+        `owner`   varchar(1024) NOT NULL comment 'Responsible for named space Owner',
+        `flag`    tinyint(4)    NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`   timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`   timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`name`)
+    ) ENGINE = InnoDB;
+
+    --
+    -- Data in the conveyor `namespace`
+    --
+    INSERT INTO `namespace` (`name`,
+                            `comment`,
+                            `token`,
+                            `owner`,
+                            `flag`,
+                            `ctime`,
+                            `mtime`)
+    VALUES ('Polaris',
+            'Polaris-server',
+            '2d1bfe5d12e04d54b8ee69e62494c7fd',
+            'polaris',
+            0,
+            '2019-09-06 07:55:07',
+            '2019-09-06 07:55:07'),
+        ('default',
+            'Default Environment',
+            'e2e473081d3d4306b52264e49f7ce227',
+            'polaris',
+            0,
+            '2021-07-27 19:37:37',
+            '2021-07-27 19:37:37');
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `routing_config`
+    --
+    CREATE TABLE `routing_config`
+    (
+        `id`         varchar(32) NOT NULL comment 'Routing configuration ID',
+        `in_bounds`  text comment 'Service is routing rules',
+        `out_bounds` text comment 'Service main routing rules',
+        `revision`   varchar(40) NOT NULL comment 'Routing rule version',
+        `flag`       tinyint(4)  NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`      timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`      timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `ratelimit_config`
+    --
+    CREATE TABLE `ratelimit_config`
+    (
+        `id`         varchar(32)    NOT NULL comment 'ratelimit rule ID',
+        `name`       varchar(64)    NOT NULL comment 'ratelimt rule name',
+        `disable`     tinyint(4)    NOT NULL DEFAULT '0' comment 'ratelimit disable',
+        `service_id` varchar(32)    NOT NULL comment 'Service ID',
+        `method`     varchar(512)   NOT NULL comment 'ratelimit method',
+        `labels`     text           NOT NULL comment 'Conductive flow for a specific label',
+        `priority`   smallint(6)    NOT NULL DEFAULT '0' comment 'ratelimit rule priority',
+        `rule`       text           NOT NULL comment 'Current limiting rules',
+        `revision`   varchar(32)    NOT NULL comment 'Limiting version',
+        `flag`       tinyint(4)     NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`      timestamp      NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`      timestamp      NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        `etime`      timestamp      NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'RateLimit rule enable time',
+        PRIMARY KEY (`id`),
+        KEY `mtime` (`mtime`),
+        KEY `service_id` (`service_id`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `ratelimit_revision`
+    --
+    CREATE TABLE `ratelimit_revision`
+    (
+        `service_id`    varchar(32) NOT NULL comment 'Service ID',
+        `last_revision` varchar(40) NOT NULL comment 'The latest limited limiting rule version of the corresponding service',
+        `mtime`         timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`service_id`),
+        KEY `service_id` (`service_id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `service`
+    --
+    CREATE TABLE `service`
+    (
+        `id`           varchar(32)   NOT NULL comment 'Service ID',
+        `name`         varchar(128)  NOT NULL comment 'Service name, only under the namespace',
+        `namespace`    varchar(64)   NOT NULL comment 'Namespace belongs to the service',
+        `ports`        text                   DEFAULT NULL comment 'Service will have a list of all port information of the external exposure (single process exposing multiple protocols)',
+        `business`     varchar(64)            DEFAULT NULL comment 'Service business information',
+        `department`   varchar(1024)          DEFAULT NULL comment 'Service department information',
+        `cmdb_mod1`    varchar(1024)          DEFAULT NULL comment '',
+        `cmdb_mod2`    varchar(1024)          DEFAULT NULL comment '',
+        `cmdb_mod3`    varchar(1024)          DEFAULT NULL comment '',
+        `comment`      varchar(1024)          DEFAULT NULL comment 'Description information',
+        `token`        varchar(2048) NOT NULL comment 'Service token, used to handle all the services involved in the service',
+        `revision`     varchar(32)   NOT NULL comment 'Service version information',
+        `owner`        varchar(1024) NOT NULL comment 'Owner information belonging to the service',
+        `flag`         tinyint(4)    NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `reference`    varchar(32)            DEFAULT NULL comment 'Service alias, what is the actual service name that the service is actually pointed out?',
+        `refer_filter` varchar(1024)          DEFAULT NULL comment '',
+        `platform_id`  varchar(32)            DEFAULT '' comment 'The platform ID to which the service belongs',
+        `ctime`        timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`        timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `name` (`name`, `namespace`),
+        KEY `namespace` (`namespace`),
+        KEY `mtime` (`mtime`),
+        KEY `reference` (`reference`),
+        KEY `platform_id` (`platform_id`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Data in the conveyor `service`
+    --
+    INSERT INTO `service` (`id`,
+                        `name`,
+                        `namespace`,
+                        `comment`,
+                        `business`,
+                        `token`,
+                        `revision`,
+                        `owner`,
+                        `flag`,
+                        `ctime`,
+                        `mtime`)
+    VALUES ('fbca9bfa04ae4ead86e1ecf5811e32a9',
+            'polaris.checker',
+            'Polaris',
+            'polaris checker service',
+            'polaris',
+            '7d19c46de327408d8709ee7392b7700b',
+            '301b1e9f0bbd47a6b697e26e99dfe012',
+            'polaris',
+            0,
+            '2021-09-06 07:55:07',
+            '2021-09-06 07:55:09');
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `service_metadata`
+    --
+    CREATE TABLE `service_metadata`
+    (
+        `id`     varchar(32)   NOT NULL comment 'Service ID',
+        `mkey`   varchar(128)  NOT NULL comment 'Service label key',
+        `mvalue` varchar(4096) NOT NULL comment 'Service label Value',
+        `ctime`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`  timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`, `mkey`),
+        KEY `mkey` (`mkey`),
+        CONSTRAINT `service_metadata_ibfk_1` FOREIGN KEY (`id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `owner_service_map`Quickly query all services under an Owner
+    --
+    CREATE TABLE `owner_service_map`
+    (
+        `id`        varchar(32)  NOT NULL comment '',
+        `owner`     varchar(32)  NOT NULL comment 'Service Owner',
+        `service`   varchar(128) NOT NULL comment 'service name',
+        `namespace` varchar(64)  NOT NULL comment 'namespace name',
+        PRIMARY KEY (`id`),
+        KEY `owner` (`owner`),
+        KEY `name` (`service`, `namespace`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `circuitbreaker_rule`
+    --
+    CREATE TABLE `circuitbreaker_rule`
+    (
+        `id`         varchar(97)   NOT NULL comment 'Melting rule ID',
+        `version`    varchar(32)   NOT NULL DEFAULT 'master' comment 'Melting rule version, default is MASTR',
+        `name`       varchar(128)  NOT NULL comment 'Melting rule name',
+        `namespace`  varchar(64)   NOT NULL comment 'Melting rule belongs to name space',
+        `business`   varchar(64)            DEFAULT NULL comment 'Business information of fuse regular',
+        `department` varchar(1024)          DEFAULT NULL comment 'Department information to which the fuse regular belongs',
+        `comment`    varchar(1024)          DEFAULT NULL comment 'Description of the fuse rule',
+        `inbounds`   text          NOT NULL comment 'Service-tuned fuse rule',
+        `outbounds`  text          NOT NULL comment 'Service Motoring Fuse Rule',
+        `token`      varchar(32)   NOT NULL comment 'Token, which is fucking, mainly for writing operation check',
+        `owner`      varchar(1024) NOT NULL comment 'Melting rule Owner information',
+        `revision`   varchar(32)   NOT NULL comment 'Melt rule version information',
+        `flag`       tinyint(4)    NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`, `version`),
+        UNIQUE KEY `name` (`name`, `namespace`, `version`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `circuitbreaker_rule_relation`
+    --
+    CREATE TABLE `circuitbreaker_rule_relation`
+    (
+        `service_id`   varchar(32) NOT NULL comment 'Service ID',
+        `rule_id`      varchar(97) NOT NULL comment 'Melting rule ID',
+        `rule_version` varchar(32) NOT NULL comment 'Melting rule version',
+        `flag`         tinyint(4)  NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`        timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`        timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`service_id`),
+        KEY `mtime` (`mtime`),
+        KEY `rule_id` (`rule_id`),
+        CONSTRAINT `circuitbreaker_rule_relation_ibfk_1` FOREIGN KEY (`service_id`) REFERENCES `service` (`id`) ON DELETE CASCADE ON UPDATE CASCADE
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `platform`
+    --
+    CREATE TABLE `platform`
+    (
+        `id`         varchar(32)   NOT NULL comment 'Platform ID',
+        `name`       varchar(128)  NOT NULL comment 'Platform name',
+        `domain`     varchar(1024) NOT NULL comment 'Platform domain name',
+        `qps`        smallint(6)   NOT NULL comment 'QPS restrictions set for a platform',
+        `token`      varchar(32)   NOT NULL comment 'Platform token',
+        `owner`      varchar(1024) NOT NULL comment 'Platform is responsible for Owner',
+        `department` varchar(1024)          DEFAULT NULL comment 'Platform department',
+        `comment`    varchar(1024)          DEFAULT NULL comment 'Platform description',
+        `flag`       tinyint(4)    NOT NULL DEFAULT '0' comment 'Logic delete flag, 0 means visible, 1 means that it has been logically deleted',
+        `ctime`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`      timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `t_ip_config`
+    --
+    CREATE TABLE `t_ip_config`
+    (
+        `Fip`     int(10) unsigned NOT NULL comment 'Machine IP',
+        `FareaId` int(10) unsigned NOT NULL comment 'Area number',
+        `FcityId` int(10) unsigned NOT NULL comment 'City number',
+        `FidcId`  int(10) unsigned NOT NULL comment 'IDC number',
+        `Fflag`   tinyint(4) DEFAULT '0',
+        `Fstamp`  datetime         NOT NULL,
+        `Fflow`   int(10) unsigned NOT NULL,
+        PRIMARY KEY (`Fip`),
+        KEY `idx_Fflow` (`Fflow`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `t_policy`
+    --
+    CREATE TABLE `t_policy`
+    (
+        `FmodId` int(10) unsigned NOT NULL,
+        `Fdiv`   int(10) unsigned NOT NULL,
+        `Fmod`   int(10) unsigned NOT NULL,
+        `Fflag`  tinyint(4) DEFAULT '0',
+        `Fstamp` datetime         NOT NULL,
+        `Fflow`  int(10) unsigned NOT NULL,
+        PRIMARY KEY (`FmodId`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `t_route`
+    --
+    CREATE TABLE `t_route`
+    (
+        `Fip`    int(10) unsigned NOT NULL,
+        `FmodId` int(10) unsigned NOT NULL,
+        `FcmdId` int(10) unsigned NOT NULL,
+        `FsetId` varchar(32)      NOT NULL,
+        `Fflag`  tinyint(4) DEFAULT '0',
+        `Fstamp` datetime         NOT NULL,
+        `Fflow`  int(10) unsigned NOT NULL,
+        PRIMARY KEY (`Fip`, `FmodId`, `FcmdId`),
+        KEY `Fflow` (`Fflow`),
+        KEY `idx1` (`FmodId`, `FcmdId`, `FsetId`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `t_section`
+    --
+    CREATE TABLE `t_section`
+    (
+        `FmodId` int(10) unsigned NOT NULL,
+        `Ffrom`  int(10) unsigned NOT NULL,
+        `Fto`    int(10) unsigned NOT NULL,
+        `Fxid`   int(10) unsigned NOT NULL,
+        `Fflag`  tinyint(4) DEFAULT '0',
+        `Fstamp` datetime         NOT NULL,
+        `Fflow`  int(10) unsigned NOT NULL,
+        PRIMARY KEY (`FmodId`, `Ffrom`, `Fto`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `start_lock`
+    --
+    CREATE TABLE `start_lock`
+    (
+        `lock_id`  int(11)     NOT NULL COMMENT '锁序号',
+        `lock_key` varchar(32) NOT NULL COMMENT 'Lock name',
+        `server`   varchar(32) NOT NULL COMMENT 'SERVER holding launch lock',
+        `mtime`    timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT 'Update time',
+        PRIMARY KEY (`lock_id`, `lock_key`)
+    ) ENGINE = InnoDB;
+
+    --
+    -- Data in the conveyor `start_lock`
+    --
+    INSERT INTO `start_lock` (`lock_id`, `lock_key`, `server`, `mtime`)
+    VALUES (1, 'sz', 'aaa', '2019-12-05 08:35:49');
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `cl5_module`
+    --
+    CREATE TABLE `cl5_module`
+    (
+        `module_id`    int(11)   NOT NULL COMMENT 'Module ID',
+        `interface_id` int(11)   NOT NULL COMMENT 'Interface ID',
+        `range_num`    int(11)   NOT NULL,
+        `mtime`        timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`module_id`)
+    ) ENGINE = InnoDB COMMENT = 'To generate SID';
+
+    --
+    -- Data in the conveyor `cl5_module`
+    --
+    insert into cl5_module(module_id, interface_id, range_num)
+    values (3000001, 1, 0);
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `mesh`
+    --
+    CREATE TABLE `mesh`
+    (
+        `id`            varchar(32)   NOT NULL COMMENT 'mesh ID',
+        `name`          varchar(128)  NOT NULL COMMENT 'mesh name',
+        `department`    varchar(1024)          DEFAULT NULL COMMENT 'mesh department',
+        `business`      varchar(128)  NOT NULL COMMENT 'mesh service',
+        `managed`       tinyint(4)    NOT NULL COMMENT 'Whether to managed',
+        `istio_version` varchar(64) COMMENT 'ISTIO version',
+        `data_cluster`  varchar(1024) COMMENT 'Data surface cluster',
+        `revision`      varchar(32)   NOT NULL COMMENT 'Rule version number',
+        `comment`       varchar(1024)          DEFAULT NULL COMMENT 'Rule description',
+        `token`         varchar(32)   NOT NULL COMMENT 'Rule Authentication Token',
+        `owner`         varchar(1024) NOT NULL COMMENT 'Rule owner',
+        `flag`          tinyint(4)    NOT NULL DEFAULT '0' COMMENT 'Whether the rules are valid, 0 is valid, 1 is invalid, it is deleted',
+        `ctime`         timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`         timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        KEY `name` (`name`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `mesh_service`
+    --
+    CREATE TABLE `mesh_service`
+    (
+        `id`             varchar(32)   NOT NULL COMMENT 'mesh rule ID',
+        `mesh_id`        varchar(32)   NOT NULL COMMENT 'mesh name',
+        `service_id`     varchar(32)   NOT NULL COMMENT 'Service ID',
+        `namespace`      varchar(64)   NOT NULL COMMENT 'Service namespace',
+        `service`        varchar(128)  NOT NULL COMMENT 'Service Name',
+        `mesh_namespace` varchar(64)   NOT NULL COMMENT 'Map to the mesh namespace',
+        `mesh_service`   varchar(128)  NOT NULL COMMENT 'Mapping to the mesh service name',
+        `location`       varchar(16)   NOT NULL COMMENT 'Which location is in the mesh',
+        `export_to`      varchar(1024) NOT NULL COMMENT 'What is the service you can be seen by the namespace',
+        `revision`       varchar(32)   NOT NULL COMMENT 'Rule version number',
+        `flag`           tinyint(4)    NOT NULL DEFAULT '0' COMMENT 'Whether the rules are valid, 0 is valid, 1 is invalid, it is deleted',
+        `ctime`          timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`          timestamp     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `relation` (`mesh_id`, `mesh_namespace`, `mesh_service`),
+        KEY `namespace` (`namespace`),
+        KEY `service` (`service`),
+        KEY `location` (`location`),
+        KEY `export_to` (`export_to`),
+        KEY `mtime` (`mtime`),
+        KEY `flag` (`flag`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `mesh_service_revision`
+    --
+    CREATE TABLE `mesh_service_revision`
+    (
+        `mesh_id`  varchar(32) NOT NULL COMMENT 'mesh name',
+        `revision` varchar(32) NOT NULL COMMENT 'Rule version number',
+        `ctime`    timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`    timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`mesh_id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `mesh_resource`
+    --
+    CREATE TABLE `mesh_resource`
+    (
+        `id`             varchar(32) NOT NULL COMMENT 'mesh rule ID',
+        `mesh_id`        varchar(32) NOT NULL COMMENT 'mesh name',
+        `name`           varchar(64) NOT NULL COMMENT 'Rule name',
+        `mesh_namespace` varchar(64) NOT NULL COMMENT 'mesh namespace where the rules are located',
+        `type_url`       varchar(96) NOT NULL COMMENT 'Rule type, such as VirtualService',
+        `revision`       varchar(32) NOT NULL COMMENT 'Rule version number',
+        `body`           text COMMENT 'Rule content, JSON format string',
+        `flag`           tinyint(4)  NOT NULL DEFAULT '0' COMMENT 'Whether the rules are valid, 0 is valid, 1 is invalid, it is deleted',
+        `ctime`          timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`          timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `name` (`mesh_id`, `name`, `mesh_namespace`, `type_url`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    --
+    -- Table structure `mesh_revision`
+    --
+    CREATE TABLE `mesh_resource_revision`
+    (
+        `mesh_id`  varchar(32) NOT NULL COMMENT 'Rules, mesh ID',
+        `type_url` varchar(96) NOT NULL COMMENT 'Rule type, such as VirtualService',
+        `revision` varchar(32) NOT NULL COMMENT 'The version number of the rules collection, the overall version number of all rule collections below the same mesh',
+        `ctime`    timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`    timestamp   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`mesh_id`, `type_url`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `config_file`
+    --
+    CREATE TABLE `config_file`
+    (
+        `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+        `namespace`   varchar(64)     NOT NULL COMMENT '所属的namespace',
+        `group`       varchar(128)    NOT NULL DEFAULT '' COMMENT '所属的文件组',
+        `name`        varchar(128)    NOT NULL COMMENT '配置文件名',
+        `content`     longtext        NOT NULL COMMENT '文件内容',
+        `format`      varchar(16)              DEFAULT 'text' COMMENT '文件格式，枚举值',
+        `comment`     varchar(512)             DEFAULT NULL COMMENT '备注信息',
+        `flag`        tinyint(4)      NOT NULL DEFAULT '0' COMMENT '软删除标记位',
+        `create_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        `create_by`   varchar(32)              DEFAULT NULL COMMENT '创建人',
+        `modify_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+        `modify_by`   varchar(32)              DEFAULT NULL COMMENT '最后更新人',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_file` (`namespace`, `group`, `name`)
+    ) ENGINE = InnoDB
+    AUTO_INCREMENT = 1 COMMENT = '配置文件表';
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `config_file_group`
+    --
+    CREATE TABLE `config_file_group`
+    (
+        `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+        `name`        varchar(128)    NOT NULL COMMENT '配置文件分组名',
+        `namespace`   varchar(64)     NOT NULL COMMENT '所属的namespace',
+        `comment`     varchar(512)             DEFAULT NULL COMMENT '备注信息',
+        `owner`       varchar(1024)            DEFAULT NULL COMMENT '负责人',
+        `create_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        `create_by`   varchar(32)              DEFAULT NULL COMMENT '创建人',
+        `modify_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+        `modify_by`   varchar(32)              DEFAULT NULL COMMENT '最后更新人',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_name` (`namespace`, `name`)
+    ) ENGINE = InnoDB
+    AUTO_INCREMENT = 1 COMMENT = '配置文件组表';
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `config_file_release`
+    --
+    CREATE TABLE `config_file_release`
+    (
+        `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+        `name`        varchar(128)             DEFAULT NULL COMMENT '发布标题',
+        `namespace`   varchar(64)     NOT NULL COMMENT '所属的namespace',
+        `group`       varchar(128)    NOT NULL COMMENT '所属的文件组',
+        `file_name`   varchar(128)    NOT NULL COMMENT '配置文件名',
+        `content`     longtext        NOT NULL COMMENT '文件内容',
+        `comment`     varchar(512)             DEFAULT NULL COMMENT '备注信息',
+        `md5`         varchar(128)    NOT NULL COMMENT 'content的md5值',
+        `version`     int(11)         NOT NULL COMMENT '版本号，每次发布自增1',
+        `flag`        tinyint(4)      NOT NULL DEFAULT '0' COMMENT '是否被删除',
+        `create_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        `create_by`   varchar(32)              DEFAULT NULL COMMENT '创建人',
+        `modify_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+        `modify_by`   varchar(32)              DEFAULT NULL COMMENT '最后更新人',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_file` (`namespace`, `group`, `file_name`),
+        KEY `idx_modify_time` (`modify_time`)
+    ) ENGINE = InnoDB
+    AUTO_INCREMENT = 1 COMMENT = '配置文件发布表';
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `config_file_release_history`
+    --
+    CREATE TABLE `config_file_release_history`
+    (
+        `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+        `name`        varchar(64)              DEFAULT '' COMMENT '发布名称',
+        `namespace`   varchar(64)     NOT NULL COMMENT '所属的namespace',
+        `group`       varchar(128)    NOT NULL COMMENT '所属的文件组',
+        `file_name`   varchar(128)    NOT NULL COMMENT '配置文件名',
+        `content`     longtext        NOT NULL COMMENT '文件内容',
+        `format`      varchar(16)              DEFAULT 'text' COMMENT '文件格式',
+        `tags`        varchar(2048)            DEFAULT '' COMMENT '文件标签',
+        `comment`     varchar(512)             DEFAULT NULL COMMENT '备注信息',
+        `md5`         varchar(128)    NOT NULL COMMENT 'content的md5值',
+        `type`        varchar(32)     NOT NULL COMMENT '发布类型，例如全量发布、灰度发布',
+        `status`      varchar(16)     NOT NULL DEFAULT 'success' COMMENT '发布状态，success表示成功，fail 表示失败',
+        `create_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        `create_by`   varchar(32)              DEFAULT NULL COMMENT '创建人',
+        `modify_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+        `modify_by`   varchar(32)              DEFAULT NULL COMMENT '最后更新人',
+        PRIMARY KEY (`id`),
+        KEY `idx_file` (`namespace`, `group`, `file_name`)
+    ) ENGINE = InnoDB
+    AUTO_INCREMENT = 1 COMMENT = '配置文件发布历史表';
+
+    -- --------------------------------------------------------
+    --
+    -- Table structure `config_file_tag`
+    --
+    CREATE TABLE `config_file_tag`
+    (
+        `id`          bigint unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+        `key`         varchar(128)    NOT NULL COMMENT 'tag 的键',
+        `Value`       varchar(128)    NOT NULL COMMENT 'tag 的值',
+        `namespace`   varchar(64)     NOT NULL COMMENT '所属的namespace',
+        `group`       varchar(128)    NOT NULL DEFAULT '' COMMENT '所属的文件组',
+        `file_name`   varchar(128)    NOT NULL COMMENT '配置文件名',
+        `create_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        `create_by`   varchar(32)              DEFAULT NULL COMMENT '创建人',
+        `modify_time` timestamp       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+        `modify_by`   varchar(32)              DEFAULT NULL COMMENT '最后更新人',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_tag` (
+                            `key`,
+                            `Value`,
+                            `namespace`,
+                            `group`,
+                            `file_name`
+            ),
+        KEY `idx_file` (`namespace`, `group`, `file_name`)
+    ) ENGINE = InnoDB
+    AUTO_INCREMENT = 1 COMMENT = '配置文件标签表';
+
+    /*!40101 SET CHARACTER_SET_CLIENT = @OLD_CHARACTER_SET_CLIENT */
+    ;
+
+    /*!40101 SET CHARACTER_SET_RESULTS = @OLD_CHARACTER_SET_RESULTS */
+    ;
+
+    /*!40101 SET COLLATION_CONNECTION = @OLD_COLLATION_CONNECTION */
+    ;
+
+    CREATE TABLE `user`
+    (
+        `id`           VARCHAR(128) NOT NULL comment 'User ID',
+        `name`         VARCHAR(100) NOT NULL comment 'user name',
+        `password`     VARCHAR(100) NOT NULL comment 'user password',
+        `owner`        VARCHAR(128) NOT NULL comment 'Main account ID',
+        `source`       VARCHAR(32)  NOT NULL comment 'Account source',
+        `mobile`       VARCHAR(12)  NOT NULL DEFAULT '' comment 'Account mobile phone number',
+        `email`        VARCHAR(64)  NOT NULL DEFAULT '' comment 'Account mailbox',
+        `token`        VARCHAR(255) NOT NULL comment 'The token information owned by the account can be used for SDK access authentication',
+        `token_enable` tinyint(4)   NOT NULL DEFAULT 1,
+        `user_type`    int          NOT NULL DEFAULT 20 comment 'Account type, 0 is the admin super account, 20 is the primary account, 50 for the child account',
+        `comment`      VARCHAR(255) NOT NULL comment 'describe',
+        `flag`         tinyint(4)   NOT NULL DEFAULT '0' COMMENT 'Whether the rules are valid, 0 is valid, 1 is invalid, it is deleted',
+        `ctime`        timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`        timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY (`name`, `owner`),
+        KEY `owner` (`owner`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    CREATE TABLE `user_group`
+    (
+        `id`           VARCHAR(128) NOT NULL comment 'User group ID',
+        `name`         VARCHAR(100) NOT NULL comment 'User group name',
+        `owner`        VARCHAR(128) NOT NULL comment 'The main account ID of the user group',
+        `token`        VARCHAR(255) NOT NULL comment 'TOKEN information of this user group',
+        `comment`      VARCHAR(255) NOT NULL comment 'Description',
+        `token_enable` tinyint(4)   NOT NULL DEFAULT 1,
+        `flag`         tinyint(4)   NOT NULL DEFAULT '0' COMMENT 'Whether the rules are valid, 0 is valid, 1 is invalid, it is deleted',
+        `ctime`        timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`        timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY (`name`, `owner`),
+        KEY `owner` (`owner`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    CREATE TABLE `user_group_relation`
+    (
+        `user_id`  VARCHAR(128) NOT NULL comment 'User ID',
+        `group_id` VARCHAR(128) NOT NULL comment 'User group ID',
+        `ctime`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`user_id`, `group_id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    CREATE TABLE `auth_strategy`
+    (
+        `id`       VARCHAR(128) NOT NULL comment 'Strategy ID',
+        `name`     VARCHAR(100) NOT NULL comment 'Policy name',
+        `action`   VARCHAR(32)  NOT NULL comment 'Read and write permission for this policy, only_read = 0, read_write = 1',
+        `owner`    VARCHAR(128) NOT NULL comment 'The account ID to which this policy is',
+        `comment`  VARCHAR(255) NOT NULL comment 'describe',
+        `default`  tinyint(4)   NOT NULL DEFAULT '0',
+        `revision` VARCHAR(128) NOT NULL comment 'Authentication rule version',
+        `flag`     tinyint(4)   NOT NULL DEFAULT '0' COMMENT 'Whether the rules are valid, 0 is valid, 1 is invalid, it is deleted',
+        `ctime`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`    timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY (`name`, `owner`),
+        KEY `owner` (`owner`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    CREATE TABLE `auth_principal`
+    (
+        `strategy_id`    VARCHAR(128) NOT NULL comment 'Strategy ID',
+        `principal_id`   VARCHAR(128) NOT NULL comment 'Principal ID',
+        `principal_role` int          NOT NULL comment 'PRINCIPAL type, 1 is User, 2 is Group',
+        PRIMARY KEY (`strategy_id`, `principal_id`, `principal_role`)
+    ) ENGINE = InnoDB;
+
+    CREATE TABLE `auth_strategy_resource`
+    (
+        `strategy_id` VARCHAR(128) NOT NULL comment 'Strategy ID',
+        `res_type`    int          NOT NULL comment 'Resource Type, Namespaces = 0, Service = 1, configgroups = 2',
+        `res_id`      VARCHAR(128) NOT NULL comment 'Resource ID',
+        `ctime`       timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'Create time',
+        `mtime`       timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'Last updated time',
+        PRIMARY KEY (`strategy_id`, `res_type`, `res_id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    -- Create a default master account, password is Polarismesh @ 2021
+    INSERT INTO `user` (`id`,
+                        `name`,
+                        `password`,
+                        `source`,
+                        `token`,
+                        `token_enable`,
+                        `user_type`,
+                        `comment`,
+                        `mobile`,
+                        `email`,
+                        `owner`)
+    VALUES ('65e4789a6d5b49669adf1e9e8387549c',
+            'polaris',
+            '$2a$10$3izWuZtE5SBdAtSZci.gs.iZ2pAn9I8hEqYrC6gwJp1dyjqQnrrum',
+            'Polaris',
+            'nu/0WRA4EqSR1FagrjRj0fZwPXuGlMpX+zCuWu4uMqy8xr1vRjisSbA25aAC3mtU8MeeRsKhQiDAynUR09I=',
+            1,
+            20,
+            'default polaris admin account',
+            '12345678910',
+                    '12345678910',
+            '');
+
+    -- Permissions policy inserted into Polaris-Admin
+    INSERT INTO `auth_strategy`(`id`,
+                                `name`,
+                                `action`,
+                                `owner`,
+                                `comment`,
+                                `default`,
+                                `revision`,
+                                `flag`,
+                                `ctime`,
+                                `mtime`)
+    VALUES ('fbca9bfa04ae4ead86e1ecf5811e32a9',
+            '(用户) polaris的默认策略',
+            'READ_WRITE',
+            '65e4789a6d5b49669adf1e9e8387549c',
+            'default admin',
+            1,
+            'fbca9bfa04ae4ead86e1ecf5811e32a9',
+            0,
+            sysdate(),
+            sysdate());
+
+    -- Sport rules inserted into Polaris-Admin to access
+    INSERT INTO `auth_strategy_resource`(`strategy_id`,
+                                        `res_type`,
+                                        `res_id`,
+                                        `ctime`,
+                                        `mtime`)
+    VALUES ('fbca9bfa04ae4ead86e1ecf5811e32a9',
+            0,
+            '*',
+            sysdate(),
+            sysdate()),
+        ('fbca9bfa04ae4ead86e1ecf5811e32a9',
+            1,
+            '*',
+            sysdate(),
+            sysdate()),
+        ('fbca9bfa04ae4ead86e1ecf5811e32a9',
+            2,
+            '*',
+            sysdate(),
+            sysdate());
+
+    -- Insert permission policies and association relationships for Polaris-Admin accounts
+    INSERT INTO auth_principal(`strategy_id`, `principal_id`, `principal_role`) VALUE (
+                                                                                    'fbca9bfa04ae4ead86e1ecf5811e32a9',
+                                                                                    '65e4789a6d5b49669adf1e9e8387549c',
+                                                                                    1
+        );
+
+    -- v1.8.0, support client info storage
+    CREATE TABLE `client`
+    (
+        `id`      VARCHAR(128) NOT NULL comment 'client id',
+        `host`    VARCHAR(100) NOT NULL comment 'client host IP',
+        `type`    VARCHAR(100) NOT NULL comment 'client type: polaris-java/polaris-go',
+        `version` VARCHAR(32)  NOT NULL comment 'client SDK version',
+        `region`  varchar(128)          DEFAULT NULL comment 'region info for client',
+        `zone`    varchar(128)          DEFAULT NULL comment 'zone info for client',
+        `campus`  varchar(128)          DEFAULT NULL comment 'campus info for client',
+        `flag`    tinyint(4)   NOT NULL DEFAULT '0' COMMENT '0 is valid, 1 is invalid(deleted)',
+        `ctime`   timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP comment 'create time',
+        `mtime`   timestamp    NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP comment 'last updated time',
+        PRIMARY KEY (`id`),
+        KEY `mtime` (`mtime`)
+    ) ENGINE = InnoDB;
+
+    CREATE TABLE `client_stat`
+    (
+        `client_id` VARCHAR(128) NOT NULL comment 'client id',
+        `target`    VARCHAR(100) NOT NULL comment 'target stat platform',
+        `port`      int(11)      NOT NULL comment 'client port to get stat information',
+        `protocol`  VARCHAR(100) NOT NULL comment 'stat info transport protocol',
+        `path`      VARCHAR(128) NOT NULL comment 'stat metric path',
+        PRIMARY KEY (`client_id`, `target`, `port`)
+    ) ENGINE = InnoDB;
+
+    -- v1.9.0
+    CREATE TABLE `config_file_template` (
+        `id` bigint(10) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键',
+        `name` varchar(128) COLLATE utf8_bin NOT NULL COMMENT '配置文件模板名称',
+        `content` longtext COLLATE utf8_bin NOT NULL COMMENT '配置文件模板内容',
+        `format` varchar(16) COLLATE utf8_bin DEFAULT 'text' COMMENT '模板文件格式',
+        `comment` varchar(512) COLLATE utf8_bin DEFAULT NULL COMMENT '模板描述信息',
+        `create_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+        `create_by` varchar(32) COLLATE utf8_bin DEFAULT NULL COMMENT '创建人',
+        `modify_time` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '最后更新时间',
+        `modify_by` varchar(32) COLLATE utf8_bin DEFAULT NULL COMMENT '最后更新人',
+        PRIMARY KEY (`id`),
+        UNIQUE KEY `uk_name` (`name`)
+    ) ENGINE=InnoDB AUTO_INCREMENT=1 DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='配置文件模板表';
+
+    INSERT INTO `config_file_template` (`name`, `content`, `format`, `comment`, `create_time`
+        , `create_by`, `modify_time`, `modify_by`)
+    VALUES ("spring-cloud-gateway-braining", '{
+        "rules":[
+            {
+                "conditions":[
+                    {
+                        "key":"${http.query.uid}",
+                        "values":["10000"],
+                        "operation":"EQUALS"
+                    }
+                ],
+                "labels":[
+                    {
+                        "key":"env",
+                        "value":"green"
+                    }
+                ]
+            }
+        ]
+    }', "json", "Spring Cloud Gateway  染色规则", NOW()
+        , "polaris", NOW(), "polaris");
+
+    -- v1.12.0
+    CREATE TABLE `routing_config_v2`
+    (
+        `id`       VARCHAR(128) NOT NULL,
+        `name`     VARCHAR(64) NOT NULL default '',
+        `namespace`     VARCHAR(64) NOT NULL default '',
+        `policy`   VARCHAR(64) NOT NULL,
+        `config`   TEXT,
+        `enable`   INT         NOT NULL DEFAULT 0,
+        `revision` VARCHAR(40) NOT NULL,
+        `description` VARCHAR(500) NOT NULL DEFAULT '',
+        `priority`   smallint(6)    NOT NULL DEFAULT '0' comment 'routing rule priority',
+        `flag`     TINYINT(4)  NOT NULL DEFAULT '0',
+        `ctime`    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `mtime`    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        `etime`    TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        `extend_info` VARCHAR(1024) DEFAULT '',
+        PRIMARY KEY (`id`),
+        KEY `mtime` (`mtime`)
+    ) engine = innodb;
+---
+# Source: mysql/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: polaris-mysql
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.3
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+automountServiceAccountToken: true
+secrets:
+  - name: polaris-mysql
+---
+# Source: mysql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: polaris-mysql
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.3
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  mysql-root-password: "MTIzNDU2YWJj"
+  mysql-password: "SVJqdExwZDV0cA=="
+---
+# Source: mysql/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-mysql
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.3
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    default_authentication_plugin=mysql_native_password
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mysql
+    plugin_dir=/opt/bitnami/mysql/lib/plugin
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    datadir=/bitnami/mysql/data
+    tmpdir=/opt/bitnami/mysql/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+    log-error=/opt/bitnami/mysql/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    slow_query_log_file=/opt/bitnami/mysql/logs/mysqld.log
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mysql/lib/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+---
+# Source: mysql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-mysql-headless
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.3
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+  selector: 
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/component: primary
+---
+# Source: mysql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-mysql
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.3
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector: 
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/component: primary
+---
+# Source: mysql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: polaris-mysql
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.3
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  podManagementPolicy: ""
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/instance: polaris
+      app.kubernetes.io/component: primary
+  serviceName: polaris-mysql
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: 8d2e42d29dad8bacb1865d8f11beb3bb2d8a58fdb0f114cd98078375e502bd92
+      labels:
+        app.kubernetes.io/name: mysql
+        helm.sh/chart: mysql-9.4.3
+        app.kubernetes.io/instance: polaris
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: polaris-mysql
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mysql
+                    app.kubernetes.io/instance: polaris
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+      containers:
+        - name: mysql
+          image: docker.io/bitnami/mysql:8.0.31-debian-11-r10
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: polaris-mysql
+                  key: mysql-root-password
+          envFrom:
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          startupProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          resources: 
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mysql
+            - name: custom-init-scripts
+              mountPath: /docker-entrypoint-startdb.d
+            - name: config
+              mountPath: /opt/bitnami/mysql/conf/my.cnf
+              subPath: my.cnf
+      volumes:
+        - name: config
+          configMap:
+            name: polaris-mysql
+        - name: custom-init-scripts
+          configMap:
+            name: polaris-mysql-initdb-cm
+        - name: data
+          emptyDir: {}
+---
+# Source: redis/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+automountServiceAccountToken: true
+metadata:
+  name: polaris-redis
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+---
+# Source: redis/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-redis-configuration
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+data:
+  redis.conf: |-
+    # User-supplied common configuration:
+    # Enable AOF https://redis.io/topics/persistence#append-only-file
+    appendonly yes
+    # Disable RDB persistence, AOF persistence already enabled.
+    save ""
+    # End of common configuration
+  master.conf: |-
+    dir /data
+    # User-supplied master configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of master configuration
+  replica.conf: |-
+    dir /data
+    # User-supplied replica configuration:
+    rename-command FLUSHDB ""
+    rename-command FLUSHALL ""
+    # End of replica configuration
+---
+# Source: redis/templates/health-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-redis-health
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+data:
+  ping_readiness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_local.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    [[ -n "$REDIS_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h localhost \
+        -p $REDIS_PORT \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ] && [ "$responseFirstWord" != "MASTERDOWN" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    if [ "$response" != "PONG" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_liveness_master.sh: |-
+    #!/bin/bash
+
+    [[ -f $REDIS_MASTER_PASSWORD_FILE ]] && export REDIS_MASTER_PASSWORD="$(< "${REDIS_MASTER_PASSWORD_FILE}")"
+    [[ -n "$REDIS_MASTER_PASSWORD" ]] && export REDISCLI_AUTH="$REDIS_MASTER_PASSWORD"
+    response=$(
+      timeout -s 3 $1 \
+      redis-cli \
+        -h $REDIS_MASTER_HOST \
+        -p $REDIS_MASTER_PORT_NUMBER \
+        ping
+    )
+    if [ "$?" -eq "124" ]; then
+      echo "Timed out"
+      exit 1
+    fi
+    responseFirstWord=$(echo $response | head -n1 | awk '{print $1;}')
+    if [ "$response" != "PONG" ] && [ "$responseFirstWord" != "LOADING" ]; then
+      echo "$response"
+      exit 1
+    fi
+  ping_readiness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_readiness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_readiness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+  ping_liveness_local_and_master.sh: |-
+    script_dir="$(dirname "$0")"
+    exit_status=0
+    "$script_dir/ping_liveness_local.sh" $1 || exit_status=$?
+    "$script_dir/ping_liveness_master.sh" $1 || exit_status=$?
+    exit $exit_status
+---
+# Source: redis/templates/scripts-configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-redis-scripts
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+data:
+  start-master.sh: |
+    #!/bin/bash
+
+    [[ -f $REDIS_PASSWORD_FILE ]] && export REDIS_PASSWORD="$(< "${REDIS_PASSWORD_FILE}")"
+    if [[ -f /opt/bitnami/redis/mounted-etc/master.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/master.conf /opt/bitnami/redis/etc/master.conf
+    fi
+    if [[ -f /opt/bitnami/redis/mounted-etc/redis.conf ]];then
+        cp /opt/bitnami/redis/mounted-etc/redis.conf /opt/bitnami/redis/etc/redis.conf
+    fi
+    ARGS=("--port" "${REDIS_PORT}")
+    ARGS+=("--protected-mode" "no")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/redis.conf")
+    ARGS+=("--include" "/opt/bitnami/redis/etc/master.conf")
+    exec redis-server "${ARGS[@]}"
+---
+# Source: redis/templates/headless-svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-redis-headless
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+    
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: polaris
+---
+# Source: redis/templates/master/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-redis-master
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  type: ClusterIP
+  internalTrafficPolicy: Cluster
+  sessionAffinity: None
+  ports:
+    - name: tcp-redis
+      port: 6379
+      targetPort: redis
+      nodePort: null
+  selector:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/component: master
+---
+# Source: redis/templates/master/application.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: polaris-redis-master
+  namespace: "polaris-system"
+  labels:
+    app.kubernetes.io/name: redis
+    helm.sh/chart: redis-17.3.11
+    app.kubernetes.io/instance: polaris
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: master
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+      app.kubernetes.io/instance: polaris
+      app.kubernetes.io/component: master
+  serviceName: polaris-redis-headless
+  updateStrategy:
+    rollingUpdate: {}
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: redis
+        helm.sh/chart: redis-17.3.11
+        app.kubernetes.io/instance: polaris
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: master
+      annotations:
+        checksum/configmap: f903629485c93dfb0d66e2eeeb11f9a9ca4430099d381b086acd988265cc49ee
+        checksum/health: d4f1f839618c0036208d1c90697bb20d02abff378a8b812df8bce38638dba3a5
+        checksum/scripts: 8eb2ce8bae4fc0a5360c345c4fe84cc2449663fbcc530530fbe32cb999092bff
+        checksum/secret: e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855
+    spec:
+      
+      securityContext:
+        fsGroup: 1001
+      serviceAccountName: polaris-redis
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: redis
+                    app.kubernetes.io/instance: polaris
+                    app.kubernetes.io/component: master
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      terminationGracePeriodSeconds: 30
+      containers:
+        - name: redis
+          image: docker.io/bitnami/redis:7.0.5-debian-11-r15
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsUser: 1001
+          command:
+            - /bin/bash
+          args:
+            - -c
+            - /opt/bitnami/scripts/start-scripts/start-master.sh
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: REDIS_REPLICATION_MODE
+              value: master
+            - name: ALLOW_EMPTY_PASSWORD
+              value: "yes"
+            - name: REDIS_TLS_ENABLED
+              value: "no"
+            - name: REDIS_PORT
+              value: "6379"
+          ports:
+            - name: redis
+              containerPort: 6379
+          livenessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            # One second longer than command timeout should prevent generation of zombie processes.
+            timeoutSeconds: 6
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_liveness_local.sh 5
+          readinessProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            timeoutSeconds: 2
+            successThreshold: 1
+            failureThreshold: 5
+            exec:
+              command:
+                - sh
+                - -c
+                - /health/ping_readiness_local.sh 1
+          resources:
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: start-scripts
+              mountPath: /opt/bitnami/scripts/start-scripts
+            - name: health
+              mountPath: /health
+            - name: redis-data
+              mountPath: /data
+            - name: config
+              mountPath: /opt/bitnami/redis/mounted-etc
+            - name: redis-tmp-conf
+              mountPath: /opt/bitnami/redis/etc/
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: start-scripts
+          configMap:
+            name: polaris-redis-scripts
+            defaultMode: 0755
+        - name: health
+          configMap:
+            name: polaris-redis-health
+            defaultMode: 0755
+        - name: config
+          configMap:
+            name: polaris-redis-configuration
+        - name: redis-tmp-conf
+          emptyDir: {}
+        - name: tmp
+          emptyDir: {}
+        - name: redis-data
+          emptyDir: {}
+---
+# Source: polaris/templates/polaris-namespace.yaml
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: polaris-system
+---
+# Source: polaris/templates/polaris-console-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-console-config
+  namespace: polaris-system
+data:
+  polaris-console.yaml: |-
+    logger:
+      RotateOutputPath: log/polaris-console.log
+      RotationMaxSize: 500
+      RotationMaxAge: 30
+      RotationMaxBackups: 100
+      level: info
+    webServer:
+      mode: "release"
+      listenIP: "0.0.0.0"
+      listenPort: 8080
+      namingV1URL: "/naming/v1"
+      namingV2URL: "/naming/v2"
+      authURL: "/core/v1"
+      requestURL: "/naming/v1"
+      configURL: "/config/v1"
+      monitorURL: "/api/v1"
+      webPath: "web/dist/"
+    polarisServer:
+      address: "127.0.0.1:8090"
+      polarisToken: "polaris@12345678"
+    monitorServer:
+      address: "polaris-prometheus:9090"
+    oaAuthority:
+      enableOAAuth: false
+    hrData:
+      enableHrData: false
+---
+# Source: polaris/templates/polaris-limiter-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-limiter-config
+  namespace: polaris-system
+data:
+  polaris-limiter.yaml: |-
+    registry:
+      enable: true
+      polaris-server-address: polaris.polaris-system:8091
+      name: polaris.limiter
+      namespace: Polaris
+      health-check-enable: true
+    api-servers:
+      - name: http
+        option:
+          ip: 0.0.0.0
+          port: 8100
+      - name: grpc
+        option:
+          ip: 0.0.0.0
+          port: 8101
+    limit:
+      myid: $MY_ID #节点ID, 集群中不同节点需设置不同的myid
+      counter-group: 64 # 计数器分组，不同组的计数器创建时不冲突
+      max-counter: 1000000
+      max-client: 1000
+      push-worker: 4
+      slide-count: 1
+      purge-counter-interval: 30s
+      sync-remote-storage-interval: 1m
+      async-remote-wait-timeout: 200ms
+      update-remote-storage-threshold: 10m
+      flush-local-storage-threshold: 3s
+    plugin:
+      statis:
+        name: file
+        option:
+          ratelimit-app-name: 294_4423_polaris-limiter-stat #限流监控
+          ratelimit_report_log_path: log/polaris-limiter-ratelimit-report.log
+          ratelimit_event_log_path: log/polaris-limiter-event.log
+          ratelimit_precision_log_path: log/polaris-limiter-stat.log
+          server-app-name: 294_11866_polaris_limit_server #服务端监控
+          server_report_log_path: log/polaris-limiter-server-report.log
+          log_interval: 60
+          precision_log_interval: 1
+    logger:
+      RotateOutputPath: log/polaris-limiter.log
+      RotationMaxSize: 500
+      RotationMaxAge: 30
+      RotationMaxBackups: 100
+      level: info
+---
+# Source: polaris/templates/polaris-server-config.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: polaris-server-config
+  namespace: polaris-system
+data:
+  polaris-server.yaml: |-
+    # server启动引导配置
+    bootstrap:
+      # 全局日志
+      logger:
+        config:
+          rotateOutputPath: log/polaris-config.log
+          errorRotateOutputPath: log/polaris-config-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        auth:
+          rotateOutputPath: log/polaris-auth.log
+          errorRotateOutputPath: log/polaris-auth-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        store:
+          rotateOutputPath: log/polaris-store.log
+          errorRotateOutputPath: log/polaris-store-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        cache:
+          rotateOutputPath: log/polaris-cache.log
+          errorRotateOutputPath: log/polaris-cache-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        naming:
+          rotateOutputPath: log/polaris-naming.log
+          errorRotateOutputPath: log/polaris-naming-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        healthcheck:
+          rotateOutputPath: log/polaris-healthcheck.log
+          errorRotateOutputPath: log/polaris-healthcheck-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        xdsv3:
+          rotateOutputPath: log/polaris-xdsv3.log
+          errorRotateOutputPath: log/polaris-xdsv3-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+        default:
+          rotateOutputPath: log/polaris-default.log
+          errorRotateOutputPath: log/polaris-default-error.log
+          rotationMaxSize: 100
+          rotationMaxBackups: 10
+          rotationMaxAge: 7
+          outputLevel: info
+          outputPaths:
+            - stdout
+          errorOutputPaths:
+            - stderr
+      # 按顺序启动server
+      startInOrder:
+        open: true # 是否开启，默认是关闭
+        key: sz # 全局锁
+      # 注册为北极星服务
+      polaris_service:
+        probe_address: polaris-mysql.polaris-system.svc.cluster.local:3306
+        enable_register: true
+        isolated: false
+        services:
+          - name: polaris.checker
+            protocols:
+              - service-grpc
+    # apiserver配置
+    apiservers:
+      - name: service-eureka
+        option:
+          listenIP: "0.0.0.0"
+          listenPort: 8761
+          namespace: default
+          owner: polaris
+          refreshInterval: 10
+          deltaExpireInterval: 60
+          unhealthyExpireInterval: 180
+          connLimit:
+            openConnLimit: false
+            maxConnPerHost: 1024
+            maxConnLimit: 10240
+            whiteList: 127.0.0.1
+            purgeCounterInterval: 10s
+            purgeCounterExpired: 5s
+      - name: api-http # 协议名，全局唯一
+        option:
+          listenIP: "0.0.0.0"
+          listenPort: 8090
+          enablePprof: true # debug pprof
+          enablePprof: true # debug pprof
+          connLimit:
+            openConnLimit: false
+            maxConnPerHost: 128
+            maxConnLimit: 5120
+            whiteList: 127.0.0.1
+            purgeCounterInterval: 10s
+            purgeCounterExpired: 5s
+        api:
+          admin:
+            enable: true
+          console:
+            enable: true
+            include: [default]
+          client:
+            enable: true
+            include: [discover, register, healthcheck]
+          config:
+            enable: true
+            include: [default]
+      - name: service-grpc
+        option:
+          listenIP: "0.0.0.0"
+          listenPort: 8091
+          connLimit:
+            openConnLimit: false
+            maxConnPerHost: 128
+            maxConnLimit: 5120
+        api:
+          client:
+            enable: true
+            include: [discover, register, healthcheck]
+      - name: config-grpc
+        option:
+          listenIP: "0.0.0.0"
+          listenPort: 8093
+          connLimit:
+            openConnLimit: false
+            maxConnPerHost: 128
+            maxConnLimit: 5120
+        api:
+          client:
+            enable: true
+      - name: xds-v3
+        option:
+          listenIP: "0.0.0.0"
+          listenPort: 15010
+          connLimit:
+            openConnLimit: false
+            maxConnPerHost: 128
+            maxConnLimit: 10240
+      - name: prometheus-sd
+        option:
+          listenIP: "0.0.0.0"
+          listenPort: 9000
+          connLimit:
+            openConnLimit: false
+            maxConnPerHost: 128
+            maxConnLimit: 10240
+    #  - name: service-l5
+    #    option:
+    #      listenIP: 0.0.0.0
+    #      listenPort: 7779
+    #      clusterName: cl5.discover
+    # 核心逻辑的配置
+    auth:
+      name: defaultAuth
+      option:
+        salt: polarismesh@2021
+        consoleOpen: true
+        clientOpen: false
+    namespace:
+      autoCreate: true
+    naming:
+      auth:
+        open: false
+      # 批量控制器
+      batch:
+        register:
+          open: true
+          queueSize: 10240
+          waitTime: 32ms
+          maxBatchCount: 32
+          concurrency: 64
+        deregister:
+          open: true
+          queueSize: 10240
+          waitTime: 32ms
+          maxBatchCount: 32
+          concurrency: 64
+        clientRegister:
+          open: true
+          queueSize: 10240
+          waitTime: 32ms
+          maxBatchCount: 32
+          concurrency: 64
+        clientDeregister:
+          open: true
+          queueSize: 10240
+          waitTime: 32ms
+          maxBatchCount: 32
+          concurrency: 64
+    # 配置中心模块启动配置
+    config:
+      # 是否启动配置模块
+      open: true
+      cache:
+        #配置文件缓存过期时间，单位s
+        expireTimeAfterWrite: 3600
+    # 健康检查的配置
+    healthcheck:
+      open: true
+      service: polaris.checker
+      slotNum: 30
+      minCheckInterval: 1s
+      maxCheckInterval: 30s
+      batch:
+        heartbeat:
+          open: true
+          queueSize: 10240
+          waitTime: 32ms
+          maxBatchCount: 32
+          concurrency: 64
+      checkers:
+        - name: heartbeatRedis
+          option:
+            kvAddr: polaris-redis-master.polaris-system.svc.cluster.local:6379
+            poolSize: 200
+            minIdleConns: 30
+            idleTimeout: 120s
+            connectTimeout: 200ms
+            msgTimeout: 200ms
+            concurrency: 200
+            withTLS: false
+    # 缓存配置
+    cache:
+      open: true
+      resources:
+        - name: service # 加载服务数据
+          option:
+            disableBusiness: false # 不加载业务服务
+            needMeta: true # 加载服务元数据
+        - name: instance # 加载实例数据
+          option:
+            disableBusiness: false # 不加载业务服务实例
+            needMeta: true # 加载实例元数据
+        - name: routingConfig # 加载路由数据
+        - name: rateLimitConfig # 加载限流数据
+        - name: circuitBreakerConfig # 加载熔断数据
+        - name: users
+        - name: strategyRule
+        - name: namespace
+        - name: client
+    #    - name: l5 # 加载l5数据
+    # 存储配置
+    store:
+    # 数据库存储插件
+      name: defaultStore
+      option:
+        master:
+          dbType: mysql
+          dbUser: root
+          dbPwd: 123456abc
+          dbAddr: polaris-mysql.polaris-system.svc.cluster.local:3306
+          dbName: polaris_server
+          maxOpenConns: -1
+          maxIdleConns: -1
+          connMaxLifetime: 300 # 单位秒
+          txIsolationLevel: 2 #LevelReadCommitted
+    # 插件配置
+    plugin:
+      history:
+        name: HistoryLogger
+      discoverEvent:
+        name: discoverEventLocal
+        # option:
+        #   queueSize: 1024
+        #   outputPath: ./discover-event
+        #   rotationMaxSize: 500
+        #   rotationMaxAge: 8
+        #   rotationMaxBackups: 100
+      discoverStatis:
+        name: discoverLocal
+        option:
+          interval: 60 # 统计间隔，单位为秒
+          outputPath: ./discover-statis
+      statis:
+        name: local
+        option:
+          interval: 60 # 统计间隔，单位为秒
+          outputPath: ./statis
+        # api 调用指标数据计算上报到 prometheus
+        # name: prometheus
+        # option:
+        #   interval: 60 # 统计间隔，单位为秒
+      auth:
+        name: defaultAuth
+      ratelimit:
+        name: token-bucket
+        option:
+          remote-conf: false # 是否使用远程配置
+          ip-limit: # ip级限流，全局
+            open: true # 系统是否开启ip级限流
+            global:
+              open: true
+              bucket: 300 # 最高峰值
+              rate: 200 # 平均一个IP每秒的请求数
+            resource-cache-amount: 1024 # 最大缓存的IP个数
+            white-list: [127.0.0.1]
+          instance-limit:
+            open: true
+            global:
+              bucket: 200
+              rate: 100
+            resource-cache-amount: 1024
+          api-limit: # 接口级限流
+            open: false # 是否开启接口限流，全局开关，只有为true，才代表系统的限流开启。默认关闭
+            rules:
+              - name: store-read
+                limit:
+                  open: true # 接口的全局配置，如果在api子项中，不配置，则该接口依据global来做限制
+                  bucket: 2000 # 令牌桶最大值
+                  rate: 1000 # 每秒产生的令牌数
+              - name: store-write
+                limit:
+                  open: true
+                  bucket: 1000
+                  rate: 500
+            apis:
+              - name: "POST:/v1/naming/services"
+                rule: store-write
+              - name: "PUT:/v1/naming/services"
+                rule: store-write
+              - name: "POST:/v1/naming/services/delete"
+                rule: store-write
+              - name: "GET:/v1/naming/services"
+                rule: store-read
+              - name: "GET:/v1/naming/services/count"
+                rule: store-read
+---
+# Source: polaris/templates/polaris-server.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris
+  namespace: polaris-system
+  labels:
+    app: polaris
+spec:
+  type: NodePort
+  ports:
+    - port: 8090
+      name: http-server
+      targetPort: 8090
+    - port: 8091
+      name: service-grpc
+      targetPort: 8091
+    - port: 8080
+      name: web-server
+      targetPort: 8080
+    - port: 15010
+      name: xds-v3
+      targetPort: 15010
+    - port: 8093
+      name: config-grpc
+      targetPort: 8093
+    - port: 8761
+      name: service-eureka
+      targetPort: 8761
+    - port: 9000
+      name: prometheus-sd
+      targetPort: 9000
+  selector:
+    app: polaris
+---
+# Source: polaris/templates/prometheus.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: polaris-prometheus
+  namespace: polaris-system
+spec:
+  ports:
+    - name: polaris-prometheus
+      port: 9090
+      protocol: TCP
+      targetPort: 9090
+    - name: polaris-pushgateway
+      port: 9091
+      protocol: TCP
+      targetPort: 9091
+  selector:
+    app: polaris-prometheus
+  type: NodePort
+---
+# Source: polaris/templates/prometheus.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: polaris-prometheus
+  name: polaris-prometheus
+  namespace: polaris-system
+spec:
+  progressDeadlineSeconds: 600
+  replicas: 1
+  revisionHistoryLimit: 10
+  selector:
+    matchLabels:
+      app: polaris-prometheus
+  strategy:
+    rollingUpdate:
+      maxSurge: 25%
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: polaris-prometheus
+    spec:
+      containers:
+      - image: polarismesh/polaris-prometheus:v1.12.1
+        imagePullPolicy: IfNotPresent
+        name: polaris-prometheus
+        resources:
+          limits:
+            cpu: "500m"
+            memory: 1000Mi
+      - image: prom/pushgateway:latest
+        imagePullPolicy: IfNotPresent
+        name: polaris-pushgateway
+        resources:
+          limits:
+            cpu: "500m"
+            memory: 1000Mi
+      restartPolicy: Always
+---
+# Source: polaris/templates/polaris-limiter.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: polaris-limiter
+  name: polaris-limiter
+  namespace: polaris-system
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 3
+  selector:
+    matchLabels:
+      app: polaris-limiter
+  serviceName: polaris-limiter
+  template:
+    metadata:
+      labels:
+        app: polaris-limiter
+    spec:
+      containers:
+        - image: polarismesh/polaris-limiter:v1.0.2
+          imagePullPolicy: IfNotPresent
+          name: polaris-limiter
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1000Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /root/polaris-limiter.yaml.example
+              name: polaris-limiter-config
+              subPath: polaris-limiter.yaml
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            defaultMode: 0640
+            name: polaris-limiter-config
+          name: polaris-limiter-config
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate
+---
+# Source: polaris/templates/polaris-server.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  labels:
+    app: polaris
+  name: polaris
+  namespace: polaris-system
+spec:
+  podManagementPolicy: OrderedReady
+  replicas: 3
+  selector:
+    matchLabels:
+      app: polaris
+  serviceName: polaris
+  template:
+    metadata:
+      labels:
+        app: polaris
+    spec:
+      containers:
+        - image: polarismesh/polaris-server:v1.12.1
+          imagePullPolicy: IfNotPresent
+          name: polaris-server
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1000Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /root/polaris-server.yaml
+              name: polaris-server-config
+              subPath: polaris-server.yaml
+        - image: polarismesh/polaris-console:v1.9.0
+          imagePullPolicy: IfNotPresent
+          name: polaris-console
+          resources:
+            limits:
+              cpu: 500m
+              memory: 1000Mi
+          terminationMessagePath: /dev/termination-log
+          terminationMessagePolicy: File
+          volumeMounts:
+            - mountPath: /root/polaris-console.yaml
+              name: polaris-console-config
+              subPath: polaris-console.yaml
+      restartPolicy: Always
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: polaris-console-config
+          name: polaris-console-config
+        - configMap:
+            defaultMode: 420
+            name: polaris-server-config
+          name: polaris-server-config
+  updateStrategy:
+    rollingUpdate:
+      partition: 0
+    type: RollingUpdate

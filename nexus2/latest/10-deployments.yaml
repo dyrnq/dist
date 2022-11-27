@@ -1,0 +1,103 @@
+---
+# Source: nexus2/templates/nexus/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mynexus2
+  labels:
+    helm.sh/chart: nexus2-0.1.1
+    app.kubernetes.io/name: nexus2
+    app.kubernetes.io/instance: mynexus2
+    app.kubernetes.io/version: "2.14.18-01"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: ClusterIP
+  clusterIP: None
+  ports:
+    - port: 8081
+      targetPort: 8081
+      name: http
+  selector:
+    app.kubernetes.io/name: nexus2
+    app.kubernetes.io/instance: mynexus2
+---
+# Source: nexus2/templates/nexus/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: mynexus2
+  labels:
+    helm.sh/chart: nexus2-0.1.1
+    app.kubernetes.io/name: nexus2
+    app.kubernetes.io/instance: mynexus2
+    app.kubernetes.io/version: "2.14.18-01"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nexus2
+      app.kubernetes.io/instance: mynexus2
+  serviceName: mynexus2
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nexus2
+        app.kubernetes.io/instance: mynexus2
+    spec:
+      securityContext:
+        fsGroup: 200
+      containers:
+        - name: nexus2
+          image: "sonatype/nexus:2.15.1-02"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8081
+          livenessProbe:
+            httpGet:
+              path: /nexus
+              port: http
+            initialDelaySeconds: 200
+            timeoutSeconds: 1
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 10
+          readinessProbe:
+            httpGet:
+              path: /nexus
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            failureThreshold: 3
+          resources:
+            {}
+          volumeMounts:
+            - name: sonatype-work
+              mountPath: /sonatype-work
+      volumes:
+        - name: sonatype-work
+          emptyDir: {}
+---
+# Source: nexus2/templates/nexus/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: mynexus2-node
+  labels:
+    helm.sh/chart: nexus2-0.1.1
+    app.kubernetes.io/name: nexus2
+    app.kubernetes.io/instance: mynexus2
+    app.kubernetes.io/version: "2.14.18-01"
+    app.kubernetes.io/managed-by: Helm
+spec:
+  type: NodePort
+  ports:
+    - port: 8081
+      targetPort: 8081
+      nodePort: 32281
+      name: http
+  selector:
+    app.kubernetes.io/name: nexus2
+    app.kubernetes.io/instance: mynexus2

@@ -1,0 +1,715 @@
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: nacos-system
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-mysql-initdb-cm
+  namespace: nacos-system
+data:
+  initdb.sql: |
+    create database if not exists nacos_config default character set utf8mb4 collate utf8mb4_unicode_ci;
+    use nacos_config;
+    /*
+    * Copyright 1999-2018 Alibaba Group Holding Ltd.
+    *
+    * Licensed under the Apache License, Version 2.0 (the "License");
+    * you may not use this file except in compliance with the License.
+    * You may obtain a copy of the License at
+    *
+    *      http://www.apache.org/licenses/LICENSE-2.0
+    *
+    * Unless required by applicable law or agreed to in writing, software
+    * distributed under the License is distributed on an "AS IS" BASIS,
+    * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    * See the License for the specific language governing permissions and
+    * limitations under the License.
+    */
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = config_info   */
+    /******************************************/
+    CREATE TABLE `config_info` (
+      `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+      `data_id` varchar(255) NOT NULL COMMENT 'data_id',
+      `group_id` varchar(128) DEFAULT NULL,
+      `content` longtext NOT NULL COMMENT 'content',
+      `md5` varchar(32) DEFAULT NULL COMMENT 'md5',
+      `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+      `src_user` text COMMENT 'source user',
+      `src_ip` varchar(50) DEFAULT NULL COMMENT 'source ip',
+      `app_name` varchar(128) DEFAULT NULL,
+      `tenant_id` varchar(128) DEFAULT '' COMMENT '租户字段',
+      `c_desc` varchar(256) DEFAULT NULL,
+      `c_use` varchar(64) DEFAULT NULL,
+      `effect` varchar(64) DEFAULT NULL,
+      `type` varchar(64) DEFAULT NULL,
+      `c_schema` text,
+      `encrypted_data_key` text NOT NULL COMMENT '秘钥',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_configinfo_datagrouptenant` (`data_id`,`group_id`,`tenant_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_info';
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = config_info_aggr   */
+    /******************************************/
+    CREATE TABLE `config_info_aggr` (
+      `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+      `data_id` varchar(255) NOT NULL COMMENT 'data_id',
+      `group_id` varchar(128) NOT NULL COMMENT 'group_id',
+      `datum_id` varchar(255) NOT NULL COMMENT 'datum_id',
+      `content` longtext NOT NULL COMMENT '内容',
+      `gmt_modified` datetime NOT NULL COMMENT '修改时间',
+      `app_name` varchar(128) DEFAULT NULL,
+      `tenant_id` varchar(128) DEFAULT '' COMMENT '租户字段',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_configinfoaggr_datagrouptenantdatum` (`data_id`,`group_id`,`tenant_id`,`datum_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='增加租户字段';
+
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = config_info_beta   */
+    /******************************************/
+    CREATE TABLE `config_info_beta` (
+      `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+      `data_id` varchar(255) NOT NULL COMMENT 'data_id',
+      `group_id` varchar(128) NOT NULL COMMENT 'group_id',
+      `app_name` varchar(128) DEFAULT NULL COMMENT 'app_name',
+      `content` longtext NOT NULL COMMENT 'content',
+      `beta_ips` varchar(1024) DEFAULT NULL COMMENT 'betaIps',
+      `md5` varchar(32) DEFAULT NULL COMMENT 'md5',
+      `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+      `src_user` text COMMENT 'source user',
+      `src_ip` varchar(50) DEFAULT NULL COMMENT 'source ip',
+      `tenant_id` varchar(128) DEFAULT '' COMMENT '租户字段',
+      `encrypted_data_key` text NOT NULL COMMENT '秘钥',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_configinfobeta_datagrouptenant` (`data_id`,`group_id`,`tenant_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_info_beta';
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = config_info_tag   */
+    /******************************************/
+    CREATE TABLE `config_info_tag` (
+      `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+      `data_id` varchar(255) NOT NULL COMMENT 'data_id',
+      `group_id` varchar(128) NOT NULL COMMENT 'group_id',
+      `tenant_id` varchar(128) DEFAULT '' COMMENT 'tenant_id',
+      `tag_id` varchar(128) NOT NULL COMMENT 'tag_id',
+      `app_name` varchar(128) DEFAULT NULL COMMENT 'app_name',
+      `content` longtext NOT NULL COMMENT 'content',
+      `md5` varchar(32) DEFAULT NULL COMMENT 'md5',
+      `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+      `src_user` text COMMENT 'source user',
+      `src_ip` varchar(50) DEFAULT NULL COMMENT 'source ip',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_configinfotag_datagrouptenanttag` (`data_id`,`group_id`,`tenant_id`,`tag_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_info_tag';
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = config_tags_relation   */
+    /******************************************/
+    CREATE TABLE `config_tags_relation` (
+      `id` bigint(20) NOT NULL COMMENT 'id',
+      `tag_name` varchar(128) NOT NULL COMMENT 'tag_name',
+      `tag_type` varchar(64) DEFAULT NULL COMMENT 'tag_type',
+      `data_id` varchar(255) NOT NULL COMMENT 'data_id',
+      `group_id` varchar(128) NOT NULL COMMENT 'group_id',
+      `tenant_id` varchar(128) DEFAULT '' COMMENT 'tenant_id',
+      `nid` bigint(20) NOT NULL AUTO_INCREMENT,
+      PRIMARY KEY (`nid`),
+      UNIQUE KEY `uk_configtagrelation_configidtag` (`id`,`tag_name`,`tag_type`),
+      KEY `idx_tenant_id` (`tenant_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='config_tag_relation';
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = group_capacity   */
+    /******************************************/
+    CREATE TABLE `group_capacity` (
+      `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+      `group_id` varchar(128) NOT NULL DEFAULT '' COMMENT 'Group ID，空字符表示整个集群',
+      `quota` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '配额，0表示使用默认值',
+      `usage` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '使用量',
+      `max_size` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '单个配置大小上限，单位为字节，0表示使用默认值',
+      `max_aggr_count` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '聚合子配置最大个数，，0表示使用默认值',
+      `max_aggr_size` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '单个聚合数据的子配置大小上限，单位为字节，0表示使用默认值',
+      `max_history_count` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '最大变更历史数量',
+      `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_group_id` (`group_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='集群、各Group容量信息表';
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = his_config_info   */
+    /******************************************/
+    CREATE TABLE `his_config_info` (
+      `id` bigint(20) unsigned NOT NULL,
+      `nid` bigint(20) unsigned NOT NULL AUTO_INCREMENT,
+      `data_id` varchar(255) NOT NULL,
+      `group_id` varchar(128) NOT NULL,
+      `app_name` varchar(128) DEFAULT NULL COMMENT 'app_name',
+      `content` longtext NOT NULL,
+      `md5` varchar(32) DEFAULT NULL,
+      `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      `src_user` text,
+      `src_ip` varchar(50) DEFAULT NULL,
+      `op_type` char(10) DEFAULT NULL,
+      `tenant_id` varchar(128) DEFAULT '' COMMENT '租户字段',
+      `encrypted_data_key` text NOT NULL COMMENT '秘钥',
+      PRIMARY KEY (`nid`),
+      KEY `idx_gmt_create` (`gmt_create`),
+      KEY `idx_gmt_modified` (`gmt_modified`),
+      KEY `idx_did` (`data_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='多租户改造';
+
+
+    /******************************************/
+    /*   数据库全名 = nacos_config   */
+    /*   表名称 = tenant_capacity   */
+    /******************************************/
+    CREATE TABLE `tenant_capacity` (
+      `id` bigint(20) unsigned NOT NULL AUTO_INCREMENT COMMENT '主键ID',
+      `tenant_id` varchar(128) NOT NULL DEFAULT '' COMMENT 'Tenant ID',
+      `quota` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '配额，0表示使用默认值',
+      `usage` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '使用量',
+      `max_size` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '单个配置大小上限，单位为字节，0表示使用默认值',
+      `max_aggr_count` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '聚合子配置最大个数',
+      `max_aggr_size` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '单个聚合数据的子配置大小上限，单位为字节，0表示使用默认值',
+      `max_history_count` int(10) unsigned NOT NULL DEFAULT '0' COMMENT '最大变更历史数量',
+      `gmt_create` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+      `gmt_modified` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP COMMENT '修改时间',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_tenant_id` (`tenant_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='租户容量信息表';
+
+
+    CREATE TABLE `tenant_info` (
+      `id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'id',
+      `kp` varchar(128) NOT NULL COMMENT 'kp',
+      `tenant_id` varchar(128) default '' COMMENT 'tenant_id',
+      `tenant_name` varchar(128) default '' COMMENT 'tenant_name',
+      `tenant_desc` varchar(256) DEFAULT NULL COMMENT 'tenant_desc',
+      `create_source` varchar(32) DEFAULT NULL COMMENT 'create_source',
+      `gmt_create` bigint(20) NOT NULL COMMENT '创建时间',
+      `gmt_modified` bigint(20) NOT NULL COMMENT '修改时间',
+      PRIMARY KEY (`id`),
+      UNIQUE KEY `uk_tenant_info_kptenantid` (`kp`,`tenant_id`),
+      KEY `idx_tenant_id` (`tenant_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='tenant_info';
+
+    CREATE TABLE `users` (
+      `username` varchar(50) NOT NULL PRIMARY KEY,
+      `password` varchar(500) NOT NULL,
+      `enabled` boolean NOT NULL
+    );
+
+    CREATE TABLE `roles` (
+      `username` varchar(50) NOT NULL,
+      `role` varchar(50) NOT NULL,
+      UNIQUE INDEX `idx_user_role` (`username` ASC, `role` ASC) USING BTREE
+    );
+
+    CREATE TABLE `permissions` (
+        `role` varchar(50) NOT NULL,
+        `resource` varchar(255) NOT NULL,
+        `action` varchar(8) NOT NULL,
+        UNIQUE INDEX `uk_role_permission` (`role`,`resource`,`action`) USING BTREE
+    );
+
+    INSERT INTO users (username, password, enabled) VALUES ('nacos', '$2a$10$EuWPZHzz32dJN7jexM34MOeYirDdFAZm2kuWj7VEOJhhZkDrxfvUu', TRUE);
+
+    INSERT INTO roles (username, role) VALUES ('nacos', 'ROLE_ADMIN');
+
+---
+# Source: mysql/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: nacos-mysql
+  namespace: "nacos-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.1
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/managed-by: Helm
+  annotations:
+automountServiceAccountToken: true
+secrets:
+  - name: nacos-mysql
+---
+# Source: mysql/templates/secrets.yaml
+apiVersion: v1
+kind: Secret
+metadata:
+  name: nacos-mysql
+  namespace: "nacos-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.1
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/managed-by: Helm
+type: Opaque
+data:
+  mysql-root-password: "MTIzNDU2YWJj"
+  mysql-password: "QTFSY1ZPNkhmWA=="
+---
+# Source: mysql/templates/primary/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-mysql
+  namespace: "nacos-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.1
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+data:
+  my.cnf: |-
+    [mysqld]
+    default_authentication_plugin=mysql_native_password
+    skip-name-resolve
+    explicit_defaults_for_timestamp
+    basedir=/opt/bitnami/mysql
+    plugin_dir=/opt/bitnami/mysql/lib/plugin
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    datadir=/bitnami/mysql/data
+    tmpdir=/opt/bitnami/mysql/tmp
+    max_allowed_packet=16M
+    bind-address=*
+    pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+    log-error=/opt/bitnami/mysql/logs/mysqld.log
+    character-set-server=UTF8
+    collation-server=utf8_general_ci
+    slow_query_log=0
+    slow_query_log_file=/opt/bitnami/mysql/logs/mysqld.log
+    long_query_time=10.0
+    
+    [client]
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    default-character-set=UTF8
+    plugin_dir=/opt/bitnami/mysql/lib/plugin
+    
+    [manager]
+    port=3306
+    socket=/opt/bitnami/mysql/tmp/mysql.sock
+    pid-file=/opt/bitnami/mysql/tmp/mysqld.pid
+---
+# Source: mysql/templates/primary/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-mysql-headless
+  namespace: "nacos-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.1
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+spec:
+  type: ClusterIP
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - name: mysql
+      port: 3306
+      targetPort: mysql
+  selector: 
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/component: primary
+---
+# Source: mysql/templates/primary/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-mysql
+  namespace: "nacos-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.1
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+  annotations:
+spec:
+  type: ClusterIP
+  sessionAffinity: None
+  ports:
+    - name: mysql
+      port: 3306
+      protocol: TCP
+      targetPort: mysql
+      nodePort: null
+  selector: 
+    app.kubernetes.io/name: mysql
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/component: primary
+---
+# Source: mysql/templates/primary/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: nacos-mysql
+  namespace: "nacos-system"
+  labels:
+    app.kubernetes.io/name: mysql
+    helm.sh/chart: mysql-9.4.1
+    app.kubernetes.io/instance: nacos
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/component: primary
+spec:
+  replicas: 1
+  podManagementPolicy: ""
+  selector:
+    matchLabels: 
+      app.kubernetes.io/name: mysql
+      app.kubernetes.io/instance: nacos
+      app.kubernetes.io/component: primary
+  serviceName: nacos-mysql
+  updateStrategy:
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        checksum/configuration: 149064875d97ff77659472fa2d94ee971fcf6d8462895b15b2af194629666d0a
+      labels:
+        app.kubernetes.io/name: mysql
+        helm.sh/chart: mysql-9.4.1
+        app.kubernetes.io/instance: nacos
+        app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/component: primary
+    spec:
+      serviceAccountName: nacos-mysql
+      
+      affinity:
+        podAffinity:
+          
+        podAntiAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - podAffinityTerm:
+                labelSelector:
+                  matchLabels:
+                    app.kubernetes.io/name: mysql
+                    app.kubernetes.io/instance: nacos
+                namespaces:
+                  - "nacos-system"
+                topologyKey: kubernetes.io/hostname
+              weight: 1
+        nodeAffinity:
+          
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+      containers:
+        - name: mysql
+          image: docker.io/bitnami/mysql:5.7.40-debian-11-r9
+          imagePullPolicy: "IfNotPresent"
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 1001
+          env:
+            - name: BITNAMI_DEBUG
+              value: "false"
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: nacos-mysql
+                  key: mysql-root-password
+          envFrom:
+          ports:
+            - name: mysql
+              containerPort: 3306
+          livenessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          readinessProbe:
+            failureThreshold: 3
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          startupProbe:
+            failureThreshold: 10
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            successThreshold: 1
+            timeoutSeconds: 1
+            exec:
+              command:
+                - /bin/bash
+                - -ec
+                - |
+                  password_aux="${MYSQL_ROOT_PASSWORD:-}"
+                  if [[ -f "${MYSQL_ROOT_PASSWORD_FILE:-}" ]]; then
+                      password_aux=$(cat "$MYSQL_ROOT_PASSWORD_FILE")
+                  fi
+                  mysqladmin status -uroot -p"${password_aux}"
+          resources: 
+            limits: {}
+            requests: {}
+          volumeMounts:
+            - name: data
+              mountPath: /bitnami/mysql
+            - name: custom-init-scripts
+              mountPath: /docker-entrypoint-startdb.d
+            - name: config
+              mountPath: /opt/bitnami/mysql/conf/my.cnf
+              subPath: my.cnf
+      volumes:
+        - name: config
+          configMap:
+            name: nacos-mysql
+        - name: custom-init-scripts
+          configMap:
+            name: nacos-mysql-initdb-cm
+        - name: data
+          emptyDir: {}
+---
+# Source: nacos/templates/configmap.yaml
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: nacos-cm
+  namespace: nacos-system
+data:
+  mysql.db.host: nacos-mysql.nacos-system.svc.cluster.local
+  mysql.db.name: nacos_config
+  mysql.port: "3306"
+  mysql.user: root
+  mysql.password: 123456abc
+  mysql.param: characterEncoding=utf8&connectTimeout=1000&socketTimeout=3000&autoReconnect=true&useSSL=false
+---
+# Source: nacos/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-hs
+  namespace: nacos-system
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  ports:
+    - port: 8848
+      targetPort: 8848
+      protocol: TCP
+      name: http
+    - port: 9848
+      name: client-rpc
+      targetPort: 9848
+    - port: 9849
+      name: raft-rpc
+      targetPort: 9849
+    ## 兼容1.4.x版本的选举端口
+    - port: 7848
+      name: old-raft-rpc
+      targetPort: 7848
+      protocol: TCP
+  selector:
+    app.kubernetes.io/name: nacos
+    app.kubernetes.io/instance: my
+---
+# Source: nacos/templates/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: nacos-cs
+  namespace: nacos-system
+  labels:
+    null
+  annotations:
+    null
+spec:
+  type: NodePort
+  ports:
+    - port: 8848
+      targetPort: 8848
+      protocol: TCP
+      name: http
+      nodePort: 30888
+    - port: 9848
+      name: client-rpc
+      targetPort: 9848
+    - port: 9849
+      name: raft-rpc
+      targetPort: 9849
+    ## 兼容1.4.x版本的选举端口
+    - port: 7848
+      name: old-raft-rpc
+      targetPort: 7848
+      protocol: TCP
+      #nodePort: 30000
+  selector:
+    app.kubernetes.io/name: nacos
+    app.kubernetes.io/instance: my
+---
+# Source: nacos/templates/statefulset.yaml
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: my-nacos
+  namespace: nacos-system
+  annotations:    {}
+spec:
+  serviceName: nacos-hs
+  replicas: 3
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: nacos
+      app.kubernetes.io/instance: my
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: nacos
+        app.kubernetes.io/instance: my
+    spec:
+      initContainers:
+      - name: wait4x
+        image: atkrad/wait4x:2.9.1
+        args:
+          - mysql
+          - root:123456abc@tcp(nacos-mysql.nacos-system.svc.cluster.local:3306)/nacos_config
+          - --timeout
+          - 2s
+      containers:
+        - name: nacos
+          image: "nacos/nacos-server:v2.2.0"
+          imagePullPolicy: IfNotPresent
+          startupProbe:
+            initialDelaySeconds: 20
+            periodSeconds: 2
+            timeoutSeconds: 2
+            failureThreshold: 50
+            httpGet:
+              scheme: HTTP
+              port: 8848
+              path: /nacos/v1/console/health/readiness
+          livenessProbe:
+            initialDelaySeconds: 10
+            periodSeconds: 2
+            timeoutSeconds: 2
+            httpGet:
+              scheme: HTTP
+              port: 8848
+              path: /nacos/v1/console/health/liveness
+          ports:
+            - name: http
+              containerPort: 8848
+              protocol: TCP
+            - containerPort: 9848
+              name: client-rpc
+            - containerPort: 9849
+              name: raft-rpc
+            - containerPort: 7848
+              name: old-raft-rpc
+          resources:
+            requests:
+              cpu: 500m
+              memory: 500M
+          env:
+            - name: NACOS_SERVER_PORT
+              value: "8848"
+            - name: NACOS_SERVERS
+              value: "my-nacos-0.nacos-hs.nacos-system.svc.cluster.local:8848 my-nacos-1.nacos-hs.nacos-system.svc.cluster.local:8848 my-nacos-2.nacos-hs.nacos-system.svc.cluster.local:8848"
+            - name: NACOS_APPLICATION_PORT
+              value: "8848"
+            - name: PREFER_HOST_MODE
+              value: "hostname"
+            - name: SERVICE_NAME
+              value: "nacos-hs"
+            - name: DOMAIN_NAME
+              value: "cluster.local"
+            - name: POD_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: metadata.namespace
+            - name: SPRING_DATASOURCE_PLATFORM
+              value: "mysql"
+            - name: MYSQL_SERVICE_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.db.host
+            - name: MYSQL_SERVICE_DB_NAME
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.db.name
+            - name: MYSQL_SERVICE_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.port
+            - name: MYSQL_SERVICE_USER
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.user
+            - name: MYSQL_SERVICE_PASSWORD
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.password
+            - name: MYSQL_SERVICE_DB_PARAM
+              valueFrom:
+                configMapKeyRef:
+                  name: nacos-cm
+                  key: mysql.param
+            
+          volumeMounts:
+            - name: data
+              mountPath: /home/nacos/plugins/peer-finder
+              subPath: peer-finder
+            - name: data
+              mountPath: /home/nacos/data
+              subPath: data
+            - name: data
+              mountPath: /home/nacos/logs
+              subPath: logs
+      volumes:
+        - name: data
+          emptyDir: { }

@@ -1,0 +1,328 @@
+---
+# Source: cubefs/templates/csi-rbac.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cfs-csi-service-account
+---
+# Source: cubefs/templates/csi-rbac.yaml
+kind: ClusterRole
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cfs-csi-cluster-role
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "nodes","pods" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "" ]
+    resources: [ "secrets" ]
+    verbs: [ "get", "list" ]
+  - apiGroups: [ "" ]
+    resources: [ "events" ]
+    verbs: [ "list", "watch", "create", "update", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumes" ]
+    verbs: [ "get", "list", "watch", "create", "update", "delete", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumeclaims" ]
+    verbs: [ "get", "list", "watch", "update", "patch" ]
+  - apiGroups: [ "" ]
+    resources: [ "persistentvolumeclaims/status" ]
+    verbs: [ "patch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "storageclasses" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "csinodes" ]
+    verbs: [ "get", "list", "watch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "volumeattachments" ]
+    verbs: [ "get", "list", "watch", "create", "update", "delete", "patch" ]
+  - apiGroups: [ "storage.k8s.io" ]
+    resources: [ "volumeattachments/status" ]
+    verbs: [ "patch" ]
+---
+# Source: cubefs/templates/csi-rbac.yaml
+kind: ClusterRoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cfs-csi-cluster-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: cfs-csi-service-account
+    namespace: default
+roleRef:
+  kind: ClusterRole
+  name: cfs-csi-cluster-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: cubefs/templates/csi-rbac.yaml
+kind: Role
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cfs-csi-role
+rules:
+  - apiGroups: [ "" ]
+    resources: [ "endpoints" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+  - apiGroups: [ "" ]
+    resources: [ "configmaps" ]
+    verbs: [ "get", "list", "create", "delete" ]
+  - apiGroups: [ "coordination.k8s.io" ]
+    resources: [ "leases" ]
+    verbs: [ "get", "watch", "list", "delete", "update", "create" ]
+---
+# Source: cubefs/templates/csi-rbac.yaml
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: cfs-csi-role-binding
+subjects:
+  - kind: ServiceAccount
+    name: cfs-csi-service-account
+roleRef:
+  kind: Role
+  name: cfs-csi-role
+  apiGroup: rbac.authorization.k8s.io
+---
+# Source: cubefs/templates/csi-node-daemonset.yaml
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: cfs-csi-node
+spec:
+  updateStrategy:
+    type: OnDelete
+  selector:
+    matchLabels:
+      app: cfs-csi-node
+  template:
+    metadata:
+      labels:
+        app: cfs-csi-node
+    spec:
+      serviceAccount: cfs-csi-service-account
+      serviceAccountName: cfs-csi-service-account
+      containers:
+        - name: csi-node-driver-registrar
+          image: docker.io/dyrnq/csi-node-driver-registrar:v2.5.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          args:
+            - --csi-address=$(ADDRESS)
+            - --kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: ADDRESS
+              value: /csi/csi.sock
+            - name: DRIVER_REG_SOCK_PATH
+              value: /var/lib/kubelet/plugins/csi.cubefs.com/csi.sock
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /registration
+              name: registration-dir
+        - name: cfs-driver
+          image: docker.io/dyrnq/cfs-csi-driver:3.2.0.150.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          args:
+            - bash
+            - "-c"
+            - |-
+              set -e
+              su -p -s /bin/bash -c "/cfs/bin/start.sh &"
+              su -p -s /bin/bash -c "sleep 9999999d"
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: LOG_LEVEL
+              value: "5"
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi.sock
+            - name: DRIVER_NAME
+              value: csi.cubefs.com
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          lifecycle:
+            preStop:
+              exec:
+                command: [
+                  "/bin/sh", "-c",
+                  "rm -rf /csi/csi.sock"
+                ]
+          
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi.cubefs.com
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/plugins_registry
+            type: DirectoryOrCreate
+          name: registration-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+          name: mountpoint-dir
+---
+# Source: cubefs/templates/csi-controller-deployment.yaml
+kind: Deployment
+apiVersion: apps/v1
+metadata:
+  name: cfs-csi-controller
+spec:
+  selector:
+    matchLabels:
+      app: cfs-csi-controller
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: cfs-csi-controller
+    spec:
+      serviceAccount: cfs-csi-service-account
+      serviceAccountName: cfs-csi-service-account
+      priorityClassName: cubefs-high-priority
+      containers:
+        - name: csi-provisioner
+          image: docker.io/dyrnq/csi-provisioner:v2.2.2
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          args:
+            - --csi-address=$(ADDRESS)
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: DRIVER_NAME
+              value: csi.cubefs.com
+            - name: ADDRESS
+              value: /csi/csi-controller.sock
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: external-attacher
+          image: docker.io/dyrnq/csi-attacher:v3.4.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          args:
+            - --csi-address=$(ADDRESS)
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: ADDRESS
+              value: /csi/csi-controller.sock
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: csi-resizer
+          image: docker.io/dyrnq/csi-resizer:v1.3.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          args:
+            - --csi-address=$(ADDRESS)
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: ADDRESS
+              value: /csi/csi-controller.sock
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+        - name: cfs-driver
+          image: docker.io/dyrnq/cfs-csi-driver:3.2.0.150.0
+          imagePullPolicy: IfNotPresent
+          securityContext:
+            privileged: true
+          args:
+            - bash
+            - "-c"
+            - |-
+              set -e
+              su -p -s /bin/bash -c "/cfs/bin/start.sh &"
+              su -p -s /bin/bash -c "sleep 9999999d"
+          env:
+            - name: TZ
+              value: Asia/Shanghai
+            - name: LOG_LEVEL
+              value: "5"
+            - name: CSI_ENDPOINT
+              value: unix:///csi/csi-controller.sock
+            - name: DRIVER_NAME
+              value: csi.cubefs.com
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  apiVersion: v1
+                  fieldPath: spec.nodeName
+          lifecycle:
+            preStop:
+              exec:
+                command: [
+                  "/bin/sh", "-c",
+                  "rm -rf /csi/csi-controller.sock"
+                ]
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+          volumeMounts:
+            - mountPath: /csi
+              name: socket-dir
+            - mountPath: /var/lib/kubelet/pods
+              mountPropagation: Bidirectional
+              name: mountpoint-dir
+      volumes:
+        - hostPath:
+            path: /var/lib/kubelet/plugins/csi.cubefs.com
+            type: DirectoryOrCreate
+          name: socket-dir
+        - hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+          name: mountpoint-dir
+---
+# Source: cubefs/templates/priorityclass.yaml
+apiVersion: scheduling.k8s.io/v1
+kind: PriorityClass
+metadata:
+  name: cubefs-high-priority
+value: 1000000
+globalDefault: false
+description: "This priority class should be used for Cubefs core service pods only."

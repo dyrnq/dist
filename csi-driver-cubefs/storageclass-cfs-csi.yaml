@@ -1,0 +1,16 @@
+---
+# Source: cubefs/templates/storageclass.yaml
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: cfs-sc
+provisioner: csi.cubefs.com
+allowVolumeExpansion: true
+reclaimPolicy: Delete
+parameters:
+  # Resource manager IP address or URL
+  masterAddr: "master-service:17010"
+  # Consul Service IP address or URL
+  consulAddr: "http://consul-service:8500"
+  # Log level：debug, info, warn, error 
+  logLevel: error

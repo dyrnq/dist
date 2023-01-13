@@ -103,9 +103,11 @@ spec:
     spec:
       serviceAccount: cfs-csi-service-account
       serviceAccountName: cfs-csi-service-account
+      nodeSelector:
+        kubernetes.io/os: linux
       containers:
         - name: csi-node-driver-registrar
-          image: docker.io/dyrnq/csi-node-driver-registrar:v2.5.0
+          image: docker.io/dyrnq/csi-node-driver-registrar:v2.5.1
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true
@@ -205,9 +207,11 @@ spec:
       serviceAccount: cfs-csi-service-account
       serviceAccountName: cfs-csi-service-account
       priorityClassName: cubefs-high-priority
+      nodeSelector:
+        kubernetes.io/os: linux
       containers:
         - name: csi-provisioner
-          image: docker.io/dyrnq/csi-provisioner:v2.2.2
+          image: docker.io/dyrnq/csi-provisioner:v3.2.0
           imagePullPolicy: IfNotPresent
           securityContext:
             privileged: true

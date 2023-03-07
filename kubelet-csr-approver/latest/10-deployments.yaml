@@ -6,10 +6,10 @@ metadata:
   name: kubelet-csr-approver
   namespace: kube-system
   labels:
-    helm.sh/chart: kubelet-csr-approver-0.2.4
+    helm.sh/chart: kubelet-csr-approver-0.2.7
     app.kubernetes.io/name: kubelet-csr-approver
     app.kubernetes.io/instance: my-release
-    app.kubernetes.io/version: "v0.2.4"
+    app.kubernetes.io/version: "v0.2.7"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: kubelet-csr-approver/templates/clusterrole.yaml
@@ -63,10 +63,10 @@ metadata:
   name: kubelet-csr-approver
   namespace: kube-system
   labels:
-    helm.sh/chart: kubelet-csr-approver-0.2.4
+    helm.sh/chart: kubelet-csr-approver-0.2.7
     app.kubernetes.io/name: kubelet-csr-approver
     app.kubernetes.io/instance: my-release
-    app.kubernetes.io/version: "v0.2.4"
+    app.kubernetes.io/version: "v0.2.7"
     app.kubernetes.io/managed-by: Helm
   annotations:
     prometheus.io/port: '8080'
@@ -89,10 +89,10 @@ metadata:
   name: kubelet-csr-approver
   namespace: kube-system
   labels:
-    helm.sh/chart: kubelet-csr-approver-0.2.4
+    helm.sh/chart: kubelet-csr-approver-0.2.7
     app.kubernetes.io/name: kubelet-csr-approver
     app.kubernetes.io/instance: my-release
-    app.kubernetes.io/version: "v0.2.4"
+    app.kubernetes.io/version: "v0.2.7"
     app.kubernetes.io/managed-by: Helm
 spec:
   selector:
@@ -119,7 +119,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 65532
-          image: "postfinance/kubelet-csr-approver:v0.2.4"
+          image: "postfinance/kubelet-csr-approver:v0.2.7"
           imagePullPolicy: IfNotPresent
           args:
             - -metrics-bind-address

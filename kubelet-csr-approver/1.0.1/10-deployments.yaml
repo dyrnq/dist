@@ -6,10 +6,10 @@ metadata:
   name: kubelet-csr-approver
   namespace: kube-system
   labels:
-    helm.sh/chart: kubelet-csr-approver-1.0.5
+    helm.sh/chart: kubelet-csr-approver-1.0.1
     app.kubernetes.io/name: kubelet-csr-approver
     app.kubernetes.io/instance: my-release
-    app.kubernetes.io/version: "v1.0.5"
+    app.kubernetes.io/version: "v1.0.1"
     app.kubernetes.io/managed-by: Helm
 ---
 # Source: kubelet-csr-approver/templates/clusterrole.yaml
@@ -26,12 +26,6 @@ rules:
   - create
   - get
   - update
-- apiGroups:
-  - ""
-  resources:
-  - events
-  verbs:
-  - create
 - apiGroups:
   - certificates.k8s.io
   resources:
@@ -77,10 +71,10 @@ metadata:
   name: kubelet-csr-approver
   namespace: kube-system
   labels:
-    helm.sh/chart: kubelet-csr-approver-1.0.5
+    helm.sh/chart: kubelet-csr-approver-1.0.1
     app.kubernetes.io/name: kubelet-csr-approver
     app.kubernetes.io/instance: my-release
-    app.kubernetes.io/version: "v1.0.5"
+    app.kubernetes.io/version: "v1.0.1"
     app.kubernetes.io/managed-by: Helm
   annotations:
     prometheus.io/port: '8080'
@@ -103,10 +97,10 @@ metadata:
   name: kubelet-csr-approver
   namespace: kube-system
   labels:
-    helm.sh/chart: kubelet-csr-approver-1.0.5
+    helm.sh/chart: kubelet-csr-approver-1.0.1
     app.kubernetes.io/name: kubelet-csr-approver
     app.kubernetes.io/instance: my-release
-    app.kubernetes.io/version: "v1.0.5"
+    app.kubernetes.io/version: "v1.0.1"
     app.kubernetes.io/managed-by: Helm
 spec:
   replicas: 2
@@ -132,12 +126,9 @@ spec:
               - all
             privileged: false
             readOnlyRootFilesystem: true
-            runAsGroup: 65532
             runAsNonRoot: true
             runAsUser: 65532
-            seccompProfile:
-              type: RuntimeDefault
-          image: "ghcr.io/postfinance/kubelet-csr-approver:v1.0.5"
+          image: "ghcr.io/postfinance/kubelet-csr-approver:v1.0.1"
           imagePullPolicy: IfNotPresent
           args:
             - -metrics-bind-address
@@ -170,6 +161,9 @@ spec:
               cpu: 100m
               memory: 64Mi
       tolerations:
+        - effect: NoSchedule
+          key: node-role.kubernetes.io/master
+          operator: Equal
         - effect: NoSchedule
           key: node-role.kubernetes.io/control-plane
           operator: Equal

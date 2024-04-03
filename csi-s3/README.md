@@ -5,7 +5,7 @@
 ```bash
 
 s3_endpoint="http://192.168.1.119:9000"
-s3_access_key="foo" 
+s3_access_key="foo"
 s3_secret_key="bar"
 
 cat < 0.40.6/10-deployments.yaml \
@@ -70,11 +70,10 @@ spec:
    - name: webroot
      persistentVolumeClaim:
        claimName: csi-s3-pvc
-       readOnly: false       
+       readOnly: false
 EOF
 
-kubectl exec -it pod/csi-s3-test-nginx -- bash -c "touch /usr/share/nginx/html/s3/index.html"
-kubectl delete pod/csi-s3-test-nginx
+kubectl exec -it pod/csi-s3-test-nginx -- bash -c "echo hello >> /usr/share/nginx/html/s3/index.html"
+kubectl exec -it pod/csi-s3-test-nginx -- bash -c "curl http://127.0.0.1/s3/index.html"
+kubectl delete pod csi-s3-test-nginx
 ```
-
-

@@ -220,7 +220,7 @@ spec:
           operator: Exists
       containers:
         - name: csi-provisioner
-          image: docker.io/dyrnq/csi-provisioner:v2.1.0
+          image: docker.io/dyrnq/csi-provisioner:v4.0.1
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=4"

@@ -1267,7 +1267,7 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
         - name: csi-snapshotter
-          image: "registry.k8s.io/sig-storage/csi-snapshotter:v6.2.2"
+          image: "docker.io/dyrnq/csi-snapshotter:v6.2.2"
           args:
             - "--v=2"
             - "--csi-address=$(ADDRESS)"
@@ -1417,7 +1417,7 @@ spec:
           operator: Exists
       containers:
         - name: snapshot-controller
-          image: registry.k8s.io/sig-storage/snapshot-controller:v6.2.2
+          image: docker.io/dyrnq/snapshot-controller:v6.2.2
           args:
             - "--v=2"
             - "--leader-election=true"

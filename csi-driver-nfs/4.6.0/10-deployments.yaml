@@ -316,7 +316,7 @@ spec:
           securityContext:
             readOnlyRootFilesystem: true
         - name: csi-snapshotter
-          image: "registry.k8s.io/sig-storage/csi-snapshotter:v6.3.3"
+          image: "docker.io/dyrnq/csi-snapshotter:v6.3.3"
           args:
             - "--v=2"
             - "--csi-address=$(ADDRESS)"

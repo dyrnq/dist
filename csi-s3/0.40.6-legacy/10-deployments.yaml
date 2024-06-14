@@ -10,7 +10,7 @@ metadata:
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: csi-s3-provisioner-sa
+  name: csi-provisioner-sa
   namespace: kube-system
 ---
 # Source: csi-s3/templates/secret.yaml
@@ -34,7 +34,7 @@ metadata:
 kind: ClusterRole
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-s3-external-provisioner-runner
+  name: external-provisioner-runner
 rules:
   - apiGroups: [""]
     resources: ["secrets"]
@@ -70,27 +70,27 @@ roleRef:
 kind: ClusterRoleBinding
 apiVersion: rbac.authorization.k8s.io/v1
 metadata:
-  name: csi-s3-provisioner-role
+  name: csi-provisioner-role
 subjects:
   - kind: ServiceAccount
-    name: csi-s3-provisioner-sa
+    name: csi-provisioner-sa
     namespace: kube-system
 roleRef:
   kind: ClusterRole
-  name: csi-s3-external-provisioner-runner
+  name: external-provisioner-runner
   apiGroup: rbac.authorization.k8s.io
 ---
 # Source: csi-s3/templates/provisioner.yaml
 kind: Service
 apiVersion: v1
 metadata:
-  name: csi-s3-provisioner
+  name: csi-provisioner-s3
   namespace: kube-system
   labels:
-    app: csi-s3-provisioner
+    app: csi-provisioner-s3
 spec:
   selector:
-    app: csi-s3-provisioner
+    app: csi-provisioner-s3
   ports:
     - name: csi-s3-dummy
       port: 65535
@@ -199,20 +199,20 @@ spec:
 kind: StatefulSet
 apiVersion: apps/v1
 metadata:
-  name: csi-s3-provisioner
+  name: csi-provisioner-s3
   namespace: kube-system
 spec:
   serviceName: "csi-provisioner-s3"
   replicas: 1
   selector:
     matchLabels:
-      app: csi-s3-provisioner
+      app: csi-provisioner-s3
   template:
     metadata:
       labels:
-        app: csi-s3-provisioner
+        app: csi-provisioner-s3
     spec:
-      serviceAccount: csi-s3-provisioner-sa
+      serviceAccount: csi-provisioner-sa
       tolerations:
         - key: node-role.kubernetes.io/master
           operator: Exists

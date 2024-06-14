@@ -66,6 +66,17 @@ spec:
      volumeMounts:
        - mountPath: /usr/share/nginx/html/s3
          name: webroot
+     #livenessProbe:
+     startupProbe:
+       exec:
+         command:
+         - ls
+         - /usr/share/nginx/html/s3
+       initialDelaySeconds: 2
+       periodSeconds: 2
+       successThreshold: 1
+       failureThreshold: 1
+       terminationGracePeriodSeconds: 2
   volumes:
    - name: webroot
      persistentVolumeClaim:

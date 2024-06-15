@@ -119,7 +119,7 @@ spec:
       serviceAccount: csi-s3
       containers:
         - name: driver-registrar
-          image: docker.io/dyrnq/csi-node-driver-registrar:v2.9.4
+          image: docker.io/dyrnq/csi-node-driver-registrar:v2.10.1
           args:
             - "--kubelet-registration-path=$(DRIVER_REG_SOCK_PATH)"
             - "--v=4"
@@ -220,7 +220,7 @@ spec:
           operator: Exists
       containers:
         - name: csi-provisioner
-          image: docker.io/dyrnq/csi-provisioner:v4.0.1
+          image: docker.io/dyrnq/csi-provisioner:v5.0.1
           args:
             - "--csi-address=$(ADDRESS)"
             - "--v=4"

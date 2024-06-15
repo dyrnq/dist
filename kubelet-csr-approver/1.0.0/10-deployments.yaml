@@ -119,7 +119,7 @@ spec:
             readOnlyRootFilesystem: true
             runAsNonRoot: true
             runAsUser: 65532
-          image: "ghcr.io/postfinance/kubelet-csr-approver:v1.0.0"
+          image: "postfinance/kubelet-csr-approver:v1.0.0"
           imagePullPolicy: IfNotPresent
           args:
             - -metrics-bind-address

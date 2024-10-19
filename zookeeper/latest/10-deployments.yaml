@@ -1,15 +1,89 @@
 ---
+# Source: zookeeper/templates/networkpolicy.yaml
+kind: NetworkPolicy
+apiVersion: networking.k8s.io/v1
+metadata:
+  name: zookeeper
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: release
+      app.kubernetes.io/name: zookeeper
+  policyTypes:
+    - Ingress
+    - Egress
+  egress:
+    - {}
+  ingress:
+    # Allow inbound connections to ZooKeeper
+    - ports:
+        - port: 2181
+    # Allow internal communications between nodes
+    - ports:
+        - port: 2888
+        - port: 3888
+      from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/instance: release
+              app.kubernetes.io/name: zookeeper
+---
+# Source: zookeeper/templates/pdb.yaml
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zookeeper
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
+    app.kubernetes.io/component: zookeeper
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: release
+      app.kubernetes.io/name: zookeeper
+      app.kubernetes.io/component: zookeeper
+---
+# Source: zookeeper/templates/serviceaccount.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: zookeeper
+  namespace: default
+  labels:
+    app.kubernetes.io/instance: release
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
+    app.kubernetes.io/component: zookeeper
+    role: zookeeper
+automountServiceAccountToken: false
+---
 # Source: zookeeper/templates/scripts-configmap.yaml
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: release-zookeeper-scripts
+  name: zookeeper-scripts
   namespace: default
   labels:
-    app.kubernetes.io/name: zookeeper
-    helm.sh/chart: zookeeper-10.2.4
     app.kubernetes.io/instance: release
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
     app.kubernetes.io/component: zookeeper
 data:
   init-certs.sh: |-
@@ -28,7 +102,7 @@ data:
             ORD=${BASH_REMATCH[2]}
             export ZOO_SERVER_ID="$((ORD + 1 ))"
         else
-            echo "Failed to get index from hostname $HOST"
+            echo "Failed to get index from hostname $HOSTNAME"
             exit 1
         fi
     fi
@@ -38,13 +112,14 @@ data:
 apiVersion: v1
 kind: Service
 metadata:
-  name: release-zookeeper-headless
+  name: zookeeper-headless
   namespace: default
   labels:
-    app.kubernetes.io/name: zookeeper
-    helm.sh/chart: zookeeper-10.2.4
     app.kubernetes.io/instance: release
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
     app.kubernetes.io/component: zookeeper
 spec:
   type: ClusterIP
@@ -61,21 +136,22 @@ spec:
       port: 3888
       targetPort: election
   selector:
-    app.kubernetes.io/name: zookeeper
     app.kubernetes.io/instance: release
+    app.kubernetes.io/name: zookeeper
     app.kubernetes.io/component: zookeeper
 ---
 # Source: zookeeper/templates/svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: release-zookeeper
+  name: zookeeper
   namespace: default
   labels:
-    app.kubernetes.io/name: zookeeper
-    helm.sh/chart: zookeeper-10.2.4
     app.kubernetes.io/instance: release
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
     app.kubernetes.io/component: zookeeper
 spec:
   type: NodePort
@@ -92,32 +168,34 @@ spec:
       port: 3888
       targetPort: election
   selector:
-    app.kubernetes.io/name: zookeeper
     app.kubernetes.io/instance: release
+    app.kubernetes.io/name: zookeeper
     app.kubernetes.io/component: zookeeper
 ---
 # Source: zookeeper/templates/statefulset.yaml
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: release-zookeeper
+  name: zookeeper
   namespace: default
   labels:
-    app.kubernetes.io/name: zookeeper
-    helm.sh/chart: zookeeper-10.2.4
     app.kubernetes.io/instance: release
     app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: zookeeper
+    app.kubernetes.io/version: 3.9.2
+    helm.sh/chart: zookeeper-13.5.0
     app.kubernetes.io/component: zookeeper
     role: zookeeper
 spec:
   replicas: 3
+  revisionHistoryLimit: 10
   podManagementPolicy: Parallel
   selector:
     matchLabels:
-      app.kubernetes.io/name: zookeeper
       app.kubernetes.io/instance: release
+      app.kubernetes.io/name: zookeeper
       app.kubernetes.io/component: zookeeper
-  serviceName: release-zookeeper-headless
+  serviceName: zookeeper-headless
   updateStrategy:
     rollingUpdate: {}
     type: RollingUpdate
@@ -125,14 +203,17 @@ spec:
     metadata:
       annotations:
       labels:
-        app.kubernetes.io/name: zookeeper
-        helm.sh/chart: zookeeper-10.2.4
         app.kubernetes.io/instance: release
         app.kubernetes.io/managed-by: Helm
+        app.kubernetes.io/name: zookeeper
+        app.kubernetes.io/version: 3.9.2
+        helm.sh/chart: zookeeper-13.5.0
         app.kubernetes.io/component: zookeeper
     spec:
-      serviceAccountName: default
+      enableServiceLinks: true
+      serviceAccountName: zookeeper
       
+      automountServiceAccountToken: false
       affinity:
         podAffinity:
           
@@ -141,32 +222,46 @@ spec:
             - podAffinityTerm:
                 labelSelector:
                   matchLabels:
-                    app.kubernetes.io/name: zookeeper
                     app.kubernetes.io/instance: release
+                    app.kubernetes.io/name: zookeeper
                     app.kubernetes.io/component: zookeeper
-                namespaces:
-                  - "default"
                 topologyKey: kubernetes.io/hostname
               weight: 1
         nodeAffinity:
           
       securityContext:
         fsGroup: 1001
+        fsGroupChangePolicy: Always
+        supplementalGroups: []
+        sysctls: []
       initContainers:
       containers:
         - name: zookeeper
-          image: docker.io/bitnami/zookeeper:3.8.0-debian-11-r47
+          image: docker.io/bitnami/zookeeper:3.9.2-debian-12-r15
           imagePullPolicy: "IfNotPresent"
           securityContext:
             allowPrivilegeEscalation: false
+            capabilities:
+              drop:
+              - ALL
+            privileged: false
+            readOnlyRootFilesystem: true
+            runAsGroup: 1001
             runAsNonRoot: true
             runAsUser: 1001
+            seLinuxOptions: {}
+            seccompProfile:
+              type: RuntimeDefault
           command:
             - /scripts/setup.sh
           resources:
-            limits: {}
+            limits:
+              cpu: 375m
+              ephemeral-storage: 2Gi
+              memory: 384Mi
             requests:
               cpu: 250m
+              ephemeral-storage: 50Mi
               memory: 256Mi
           env:
             - name: BITNAMI_DEBUG
@@ -192,13 +287,13 @@ spec:
             - name: ZOO_LISTEN_ALLIPS_ENABLED
               value: "no"
             - name: ZOO_AUTOPURGE_INTERVAL
-              value: "0"
+              value: "1"
             - name: ZOO_AUTOPURGE_RETAIN_COUNT
-              value: "3"
+              value: "10"
             - name: ZOO_MAX_SESSION_TIMEOUT
               value: "40000"
             - name: ZOO_SERVERS
-              value: release-zookeeper-0.release-zookeeper-headless.default.svc.cluster.local:2888:3888::1 release-zookeeper-1.release-zookeeper-headless.default.svc.cluster.local:2888:3888::2 release-zookeeper-2.release-zookeeper-headless.default.svc.cluster.local:2888:3888::3 
+              value: zookeeper-0.zookeeper-headless.default.svc.cluster.local:2888:3888::1 zookeeper-1.zookeeper-headless.default.svc.cluster.local:2888:3888::2 zookeeper-2.zookeeper-headless.default.svc.cluster.local:2888:3888::3 
             - name: ZOO_ENABLE_AUTH
               value: "no"
             - name: ZOO_ENABLE_QUORUM_AUTH
@@ -214,6 +309,8 @@ spec:
                 fieldRef:
                   apiVersion: v1
                   fieldPath: metadata.name
+            - name: ZOO_ADMIN_SERVER_PORT_NUMBER
+              value: "8080"
           ports:
             - name: client
               containerPort: 2181
@@ -221,6 +318,8 @@ spec:
               containerPort: 2888
             - name: election
               containerPort: 3888
+            - name: http-admin
+              containerPort: 8080
           livenessProbe:
             failureThreshold: 6
             initialDelaySeconds: 30
@@ -228,7 +327,10 @@ spec:
             successThreshold: 1
             timeoutSeconds: 5
             exec:
-              command: ['/bin/bash', '-c', 'echo "ruok" | timeout 2 nc -w 2 localhost 2181 | grep imok']
+              command:
+                - /bin/bash
+                - -ec
+                - ZOO_HC_TIMEOUT=3 /opt/bitnami/scripts/zookeeper/healthcheck.sh
           readinessProbe:
             failureThreshold: 6
             initialDelaySeconds: 5
@@ -236,17 +338,31 @@ spec:
             successThreshold: 1
             timeoutSeconds: 5
             exec:
-              command: ['/bin/bash', '-c', 'echo "ruok" | timeout 2 nc -w 2 localhost 2181 | grep imok']
+              command:
+                - /bin/bash
+                - -ec
+                - ZOO_HC_TIMEOUT=2 /opt/bitnami/scripts/zookeeper/healthcheck.sh
           volumeMounts:
+            - name: empty-dir
+              mountPath: /tmp
+              subPath: tmp-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/zookeeper/conf
+              subPath: app-conf-dir
+            - name: empty-dir
+              mountPath: /opt/bitnami/zookeeper/logs
+              subPath: app-logs-dir
             - name: scripts
               mountPath: /scripts/setup.sh
               subPath: setup.sh
             - name: data
               mountPath: /bitnami/zookeeper
       volumes:
+        - name: empty-dir
+          emptyDir: {}
         - name: scripts
           configMap:
-            name: release-zookeeper-scripts
-            defaultMode: 0755
+            name: zookeeper-scripts
+            defaultMode: 493
         - name: data
           emptyDir: {}

@@ -6,13 +6,13 @@ host_data="/data/jenkins"
 mkdir -p "${host_data}/jenkins_home/init.groovy.d"
 
 pushd "${host_data}/jenkins_home/init.groovy.d/" || exit 1
-    curl -O -f#SL --retry 1 "https://github.com/dyrnq/dist/raw/main/jenkins/init-jenkins.groovy" || \
+    curl -O -f#SL --retry 1 --connect-timeout 1 -m 10 "https://github.com/dyrnq/dist/raw/main/jenkins/init-jenkins.groovy" || \
     curl -O -f#SL --retry 10 "https://fastly.jsdelivr.net/gh/dyrnq/dist@main/jenkins/init-jenkins.groovy" || \
     curl -O -f#SL --retry 10 "https://testingcf.jsdelivr.net/gh/dyrnq/dist@main/jenkins/init-jenkins.groovy" || \
     exit 1
 popd || exit 1
 pushd "${host_data}" || exit 1
-    curl -O -f#SL --retry 1 "https://github.com/dyrnq/dist/raw/main/jenkins/jvm.options" || \
+    curl -O -f#SL --retry 1 --connect-timeout 1 -m 10 "https://github.com/dyrnq/dist/raw/main/jenkins/jvm.options" || \
     curl -O -f#SL --retry 10 "https://fastly.jsdelivr.net/gh/dyrnq/dist@main/jenkins/jvm.options" || \
     curl -O -f#SL --retry 10 "https://testingcf.jsdelivr.net/gh/dyrnq/dist@main/jenkins/jvm.options" || \
     exit 1

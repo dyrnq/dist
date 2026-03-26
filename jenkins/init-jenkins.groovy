@@ -35,10 +35,10 @@ println " [groovy-init-jenkins] Enabling CSRF Protection"
 jenkins.setCrumbIssuer(new DefaultCrumbIssuer(true));
 println " [groovy-init-jenkins] CSRF Protection enabled"
 
-// Set master-slave security
-println " [groovy-init-jenkins] Setting master-slave security"
-jenkins.getInjector().getInstance(AdminWhitelistRule.class).setMasterKillSwitch(false);
-println " [groovy-init-jenkins] master-slave security set"
+// // Set master-slave security
+// println " [groovy-init-jenkins] Setting master-slave security"
+// jenkins.getInjector().getInstance(AdminWhitelistRule.class).setMasterKillSwitch(false);
+// println " [groovy-init-jenkins] master-slave security set"
 
 
 // Setting email address
